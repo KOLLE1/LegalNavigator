@@ -1,0 +1,89 @@
+---
+- name: Deploy LawHelp Application
+  hosts: lawhelp_servers
+  become: yes
+  vars:
+    app_user: "lawhelp"
+    app_directory: "/opt/lawhelp"
+    app_repo: "https://github.com/your-org/lawhelp.git"
+    app_branch: "main"
+    
+  tasks:
+    - name: Stop application if running
+      shell: pm2 stop lawhelp || true
+      become_user: "{{ app_user }}"
+      ignore_errors: yes
+
+    - name: Clone or update application repository
+      git:
+        repo: "{{ app_repo }}"
+        dest: "{{ app_directory }}/app"
+        version: "{{ app_branch }}"
+        force: yes
+      become_user: "{{ app_user }}"
+
+    - name: Install application dependencies
+      npm:
+        path: "{{ app_directory }}/app"
+        state: present
+      become_user: "{{ app_user }}"
+
+    - name: Create environment file
+      template:
+        src: .env.j2
+        dest: "{{ app_directory }}/app/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0600'
+
+    - name: Build application
+      shell: npm run build
+      args:
+        chdir: "{{ app_directory }}/app"
+      become_user: "{{ app_user }}"
+
+    - name: Run database migrations
+      shell: npm run db:push
+      args:
+        chdir: "{{ app_directory }}/app"
+      become_user: "{{ app_user }}"
+
+    - name: Create PM2 ecosystem file
+      template:
+        src: ecosystem.config.js.j2
+        dest: "{{ app_directory }}/ecosystem.config.js"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+
+    - name: Start application with PM2
+      shell: pm2 start ecosystem.config.js
+      args:
+        chdir: "{{ app_directory }}"
+      become_user: "{{ app_user }}"
+
+    - name: Save PM2 configuration
+      shell: pm2 save
+      become_user: "{{ app_user }}"
+
+    - name: Setup PM2 startup script
+      shell: pm2 startup systemd -u {{ app_user }} --hp {{ app_directory }}
+      register: pm2_startup
+
+    - name: Execute PM2 startup command
+      shell: "{{ pm2_startup.stdout }}"
+      when: pm2_startup.stdout is defined
+
+    - name: Wait for application to start
+      wait_for:
+        port: 5000
+        host: localhost
+        delay: 10
+        timeout: 60
+
+    - name: Health check
+      uri:
+        url: http://localhost:5000/health
+        method: GET
+        status_code: 200
+      retries: 3
+      delay: 5

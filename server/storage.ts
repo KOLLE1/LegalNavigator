@@ -1,11 +1,4 @@
 import {
-  users,
-  chatSessions,
-  chatMessages,
-  lawyers,
-  lawyerRatings,
-  verificationCodes,
-  notifications,
   type User,
   type InsertUser,
   type ChatSession,
@@ -21,8 +14,7 @@ import {
   type Notification,
   type InsertNotification,
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, desc, and, or, ilike, gt } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 export interface IStorage {
   // User operations
@@ -67,308 +59,6 @@ export interface IStorage {
   markNotificationRead(id: string): Promise<void>;
 }
 
-export class DatabaseStorage implements IStorage {
-  // User operations
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
-  }
-
-  async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        ...user,
-        updatedAt: new Date(),
-      })
-      .returning();
-    return newUser;
-  }
-
-  async updateUser(id: string, user: Partial<InsertUser>): Promise<User> {
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        ...user,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
-  }
-
-  // Chat operations
-  async createChatSession(session: InsertChatSession): Promise<ChatSession> {
-    const [newSession] = await db
-      .insert(chatSessions)
-      .values({
-        ...session,
-        updatedAt: new Date(),
-      })
-      .returning();
-    return newSession;
-  }
-
-  async getChatSessions(userId: string): Promise<ChatSession[]> {
-    return await db
-      .select()
-      .from(chatSessions)
-      .where(eq(chatSessions.userId, userId))
-      .orderBy(desc(chatSessions.updatedAt));
-  }
-
-  async getChatSession(id: string): Promise<ChatSession | undefined> {
-    const [session] = await db
-      .select()
-      .from(chatSessions)
-      .where(eq(chatSessions.id, id));
-    return session || undefined;
-  }
-
-  async updateChatSession(id: string, session: Partial<InsertChatSession>): Promise<ChatSession> {
-    const [updatedSession] = await db
-      .update(chatSessions)
-      .set({
-        ...session,
-        updatedAt: new Date(),
-      })
-      .where(eq(chatSessions.id, id))
-      .returning();
-    return updatedSession;
-  }
-
-  // Message operations
-  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const [newMessage] = await db
-      .insert(chatMessages)
-      .values(message)
-      .returning();
-    return newMessage;
-  }
-
-  async getChatMessages(sessionId: string): Promise<ChatMessage[]> {
-    return await db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(chatMessages.createdAt);
-  }
-
-  // Lawyer operations
-  async createLawyer(lawyer: InsertLawyer): Promise<Lawyer> {
-    const [newLawyer] = await db
-      .insert(lawyers)
-      .values({
-        ...lawyer,
-        updatedAt: new Date(),
-      })
-      .returning();
-    return newLawyer;
-  }
-
-  async getLawyers(filters?: {
-    specialization?: string;
-    location?: string;
-    language?: string;
-    minRating?: number;
-  }): Promise<(Lawyer & { user: User })[]> {
-    let query = db
-      .select({
-        id: lawyers.id,
-        userId: lawyers.userId,
-        licenseNumber: lawyers.licenseNumber,
-        specialization: lawyers.specialization,
-        experienceYears: lawyers.experienceYears,
-        practiceAreas: lawyers.practiceAreas,
-        languages: lawyers.languages,
-        officeAddress: lawyers.officeAddress,
-        description: lawyers.description,
-        hourlyRate: lawyers.hourlyRate,
-        verified: lawyers.verified,
-        rating: lawyers.rating,
-        totalReviews: lawyers.totalReviews,
-        createdAt: lawyers.createdAt,
-        updatedAt: lawyers.updatedAt,
-        user: {
-          id: users.id,
-          email: users.email,
-          name: users.name,
-          passwordHash: users.passwordHash,
-          isLawyer: users.isLawyer,
-          twoFactorEnabled: users.twoFactorEnabled,
-          twoFactorMethod: users.twoFactorMethod,
-          twoFactorSecret: users.twoFactorSecret,
-          phone: users.phone,
-          location: users.location,
-          profileImageUrl: users.profileImageUrl,
-          emailVerified: users.emailVerified,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          lastActive: users.lastActive,
-        }
-      })
-      .from(lawyers)
-      .innerJoin(users, eq(lawyers.userId, users.id))
-      .where(eq(lawyers.verified, true));
-
-    if (filters) {
-      const conditions = [];
-      
-      if (filters.specialization) {
-        conditions.push(ilike(lawyers.specialization, `%${filters.specialization}%`));
-      }
-      
-      if (filters.location) {
-        conditions.push(ilike(users.location, `%${filters.location}%`));
-      }
-      
-      if (filters.minRating) {
-        conditions.push(gt(lawyers.rating, filters.minRating));
-      }
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-    }
-
-    return await query.orderBy(desc(lawyers.rating));
-  }
-
-  async getLawyer(id: string): Promise<(Lawyer & { user: User }) | undefined> {
-    const [lawyer] = await db
-      .select({
-        id: lawyers.id,
-        userId: lawyers.userId,
-        licenseNumber: lawyers.licenseNumber,
-        specialization: lawyers.specialization,
-        experienceYears: lawyers.experienceYears,
-        practiceAreas: lawyers.practiceAreas,
-        languages: lawyers.languages,
-        officeAddress: lawyers.officeAddress,
-        description: lawyers.description,
-        hourlyRate: lawyers.hourlyRate,
-        verified: lawyers.verified,
-        rating: lawyers.rating,
-        totalReviews: lawyers.totalReviews,
-        createdAt: lawyers.createdAt,
-        updatedAt: lawyers.updatedAt,
-        user: {
-          id: users.id,
-          email: users.email,
-          name: users.name,
-          passwordHash: users.passwordHash,
-          isLawyer: users.isLawyer,
-          twoFactorEnabled: users.twoFactorEnabled,
-          twoFactorMethod: users.twoFactorMethod,
-          twoFactorSecret: users.twoFactorSecret,
-          phone: users.phone,
-          location: users.location,
-          profileImageUrl: users.profileImageUrl,
-          emailVerified: users.emailVerified,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          lastActive: users.lastActive,
-        }
-      })
-      .from(lawyers)
-      .innerJoin(users, eq(lawyers.userId, users.id))
-      .where(eq(lawyers.id, id));
-    
-    return lawyer || undefined;
-  }
-
-  async updateLawyer(id: string, lawyer: Partial<InsertLawyer>): Promise<Lawyer> {
-    const [updatedLawyer] = await db
-      .update(lawyers)
-      .set({
-        ...lawyer,
-        updatedAt: new Date(),
-      })
-      .where(eq(lawyers.id, id))
-      .returning();
-    return updatedLawyer;
-  }
-
-  // Rating operations
-  async createLawyerRating(rating: InsertLawyerRating): Promise<LawyerRating> {
-    const [newRating] = await db
-      .insert(lawyerRatings)
-      .values(rating)
-      .returning();
-    return newRating;
-  }
-
-  async getLawyerRatings(lawyerId: string): Promise<LawyerRating[]> {
-    return await db
-      .select()
-      .from(lawyerRatings)
-      .where(eq(lawyerRatings.lawyerId, lawyerId))
-      .orderBy(desc(lawyerRatings.createdAt));
-  }
-
-  // Verification operations
-  async createVerificationCode(code: InsertVerificationCode): Promise<VerificationCode> {
-    const [newCode] = await db
-      .insert(verificationCodes)
-      .values(code)
-      .returning();
-    return newCode;
-  }
-
-  async getVerificationCode(userId: string, type: string, code: string): Promise<VerificationCode | undefined> {
-    const [verificationCode] = await db
-      .select()
-      .from(verificationCodes)
-      .where(
-        and(
-          eq(verificationCodes.userId, userId),
-          eq(verificationCodes.type, type),
-          eq(verificationCodes.code, code),
-          eq(verificationCodes.used, false),
-          gt(verificationCodes.expiresAt, new Date())
-        )
-      );
-    return verificationCode || undefined;
-  }
-
-  async markVerificationCodeUsed(id: string): Promise<void> {
-    await db
-      .update(verificationCodes)
-      .set({ used: true })
-      .where(eq(verificationCodes.id, id));
-  }
-
-  // Notification operations
-  async createNotification(notification: InsertNotification): Promise<Notification> {
-    const [newNotification] = await db
-      .insert(notifications)
-      .values(notification)
-      .returning();
-    return newNotification;
-  }
-
-  async getUserNotifications(userId: string): Promise<Notification[]> {
-    return await db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, userId))
-      .orderBy(desc(notifications.createdAt));
-  }
-
-  async markNotificationRead(id: string): Promise<void> {
-    await db
-      .update(notifications)
-      .set({ read: true })
-      .where(eq(notifications.id, id));
-  }
-}
-
-// In-memory storage implementation for Replit environment
 class MemStorage implements IStorage {
   private users: Map<string, User> = new Map();
   private chatSessions: Map<string, ChatSession> = new Map();
@@ -384,31 +74,32 @@ class MemStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    for (const user of this.users.values()) {
-      if (user.email === email) return user;
+    for (const user of Array.from(this.users.values())) {
+      if (user.email === email) {
+        return user;
+      }
     }
     return undefined;
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const id = crypto.randomUUID();
     const newUser: User = {
-      id,
-      ...user,
+      id: nanoid(),
       createdAt: new Date(),
       updatedAt: new Date(),
-      lastActive: null,
+      ...user,
     };
-    this.users.set(id, newUser);
+    this.users.set(newUser.id, newUser);
     return newUser;
   }
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User> {
-    const existing = this.users.get(id);
-    if (!existing) throw new Error('User not found');
-    
+    const existingUser = this.users.get(id);
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
     const updated: User = {
-      ...existing,
+      ...existingUser,
       ...user,
       updatedAt: new Date(),
     };
@@ -418,21 +109,20 @@ class MemStorage implements IStorage {
 
   // Chat operations
   async createChatSession(session: InsertChatSession): Promise<ChatSession> {
-    const id = crypto.randomUUID();
     const newSession: ChatSession = {
-      id,
-      ...session,
+      id: nanoid(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      ...session,
     };
-    this.chatSessions.set(id, newSession);
+    this.chatSessions.set(newSession.id, newSession);
     return newSession;
   }
 
   async getChatSessions(userId: string): Promise<ChatSession[]> {
     return Array.from(this.chatSessions.values())
       .filter(session => session.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
   async getChatSession(id: string): Promise<ChatSession | undefined> {
@@ -440,11 +130,12 @@ class MemStorage implements IStorage {
   }
 
   async updateChatSession(id: string, session: Partial<InsertChatSession>): Promise<ChatSession> {
-    const existing = this.chatSessions.get(id);
-    if (!existing) throw new Error('Chat session not found');
-    
+    const existingSession = this.chatSessions.get(id);
+    if (!existingSession) {
+      throw new Error("Chat session not found");
+    }
     const updated: ChatSession = {
-      ...existing,
+      ...existingSession,
       ...session,
       updatedAt: new Date(),
     };
@@ -454,13 +145,12 @@ class MemStorage implements IStorage {
 
   // Message operations
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const id = crypto.randomUUID();
     const newMessage: ChatMessage = {
-      id,
-      ...message,
+      id: nanoid(),
       createdAt: new Date(),
+      ...message,
     };
-    this.chatMessages.set(id, newMessage);
+    this.chatMessages.set(newMessage.id, newMessage);
     return newMessage;
   }
 
@@ -472,14 +162,13 @@ class MemStorage implements IStorage {
 
   // Lawyer operations
   async createLawyer(lawyer: InsertLawyer): Promise<Lawyer> {
-    const id = crypto.randomUUID();
     const newLawyer: Lawyer = {
-      id,
-      ...lawyer,
+      id: nanoid(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      ...lawyer,
     };
-    this.lawyers.set(id, newLawyer);
+    this.lawyers.set(newLawyer.id, newLawyer);
     return newLawyer;
   }
 
@@ -489,8 +178,8 @@ class MemStorage implements IStorage {
     language?: string;
     minRating?: number;
   }): Promise<(Lawyer & { user: User })[]> {
-    let lawyers = Array.from(this.lawyers.values()).filter(lawyer => lawyer.verified);
-    
+    let lawyers = Array.from(this.lawyers.values());
+
     if (filters) {
       if (filters.specialization) {
         lawyers = lawyers.filter(lawyer => 
@@ -500,25 +189,28 @@ class MemStorage implements IStorage {
       if (filters.minRating) {
         lawyers = lawyers.filter(lawyer => lawyer.rating >= filters.minRating!);
       }
-    }
-
-    const result = [];
-    for (const lawyer of lawyers) {
-      const user = this.users.get(lawyer.userId);
-      if (user) {
-        if (filters?.location && !user.location?.toLowerCase().includes(filters.location.toLowerCase())) {
-          continue;
-        }
-        if (filters?.language && !lawyer.languages.some(lang => 
-          lang.toLowerCase().includes(filters.language!.toLowerCase())
-        )) {
-          continue;
-        }
-        result.push({ ...lawyer, user });
+      if (filters.language) {
+        lawyers = lawyers.filter(lawyer => 
+          lawyer.languages.some(lang => lang.toLowerCase().includes(filters.language!.toLowerCase()))
+        );
       }
     }
 
-    return result.sort((a, b) => b.rating - a.rating);
+    const results: (Lawyer & { user: User })[] = [];
+    for (const lawyer of lawyers) {
+      const user = this.users.get(lawyer.userId);
+      if (user) {
+        if (filters?.location) {
+          if (user.location?.toLowerCase().includes(filters.location.toLowerCase())) {
+            results.push({ ...lawyer, user });
+          }
+        } else {
+          results.push({ ...lawyer, user });
+        }
+      }
+    }
+
+    return results.sort((a, b) => b.rating - a.rating);
   }
 
   async getLawyer(id: string): Promise<(Lawyer & { user: User }) | undefined> {
@@ -532,11 +224,12 @@ class MemStorage implements IStorage {
   }
 
   async updateLawyer(id: string, lawyer: Partial<InsertLawyer>): Promise<Lawyer> {
-    const existing = this.lawyers.get(id);
-    if (!existing) throw new Error('Lawyer not found');
-    
+    const existingLawyer = this.lawyers.get(id);
+    if (!existingLawyer) {
+      throw new Error("Lawyer not found");
+    }
     const updated: Lawyer = {
-      ...existing,
+      ...existingLawyer,
       ...lawyer,
       updatedAt: new Date(),
     };
@@ -546,13 +239,12 @@ class MemStorage implements IStorage {
 
   // Rating operations
   async createLawyerRating(rating: InsertLawyerRating): Promise<LawyerRating> {
-    const id = crypto.randomUUID();
     const newRating: LawyerRating = {
-      id,
-      ...rating,
+      id: nanoid(),
       createdAt: new Date(),
+      ...rating,
     };
-    this.lawyerRatings.set(id, newRating);
+    this.lawyerRatings.set(newRating.id, newRating);
     return newRating;
   }
 
@@ -564,18 +256,17 @@ class MemStorage implements IStorage {
 
   // Verification operations
   async createVerificationCode(code: InsertVerificationCode): Promise<VerificationCode> {
-    const id = crypto.randomUUID();
     const newCode: VerificationCode = {
-      id,
-      ...code,
+      id: nanoid(),
       createdAt: new Date(),
+      ...code,
     };
-    this.verificationCodes.set(id, newCode);
+    this.verificationCodes.set(newCode.id, newCode);
     return newCode;
   }
 
   async getVerificationCode(userId: string, type: string, code: string): Promise<VerificationCode | undefined> {
-    for (const verificationCode of this.verificationCodes.values()) {
+    for (const verificationCode of Array.from(this.verificationCodes.values())) {
       if (
         verificationCode.userId === userId &&
         verificationCode.type === type &&
@@ -598,13 +289,12 @@ class MemStorage implements IStorage {
 
   // Notification operations
   async createNotification(notification: InsertNotification): Promise<Notification> {
-    const id = crypto.randomUUID();
     const newNotification: Notification = {
-      id,
-      ...notification,
+      id: nanoid(),
       createdAt: new Date(),
+      ...notification,
     };
-    this.notifications.set(id, newNotification);
+    this.notifications.set(newNotification.id, newNotification);
     return newNotification;
   }
 
@@ -622,5 +312,4 @@ class MemStorage implements IStorage {
   }
 }
 
-// Use DatabaseStorage for MySQL connection
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();

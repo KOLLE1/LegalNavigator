@@ -1,124 +1,141 @@
--- MySQL Database Setup for LawHelp Application
--- Run this script in MySQL Workbench to create the database and tables
+-- Legal Navigator Database Setup for MySQL Workbench
+-- Run this script in MySQL Workbench to set up the database
 
 -- Create database
-CREATE DATABASE IF NOT EXISTS lawhelp_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS lawhelp_db;
 USE lawhelp_db;
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(36) PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    password_hash TEXT NOT NULL,
-    is_lawyer BOOLEAN DEFAULT FALSE,
-    two_factor_enabled BOOLEAN DEFAULT FALSE,
-    two_factor_method VARCHAR(20), -- 'email' or 'totp'
-    two_factor_secret TEXT, -- TOTP secret
+    id VARCHAR(255) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
-    location VARCHAR(255),
-    profile_image_url TEXT,
+    role ENUM('user', 'lawyer', 'admin') DEFAULT 'user',
     email_verified BOOLEAN DEFAULT FALSE,
+    two_factor_enabled BOOLEAN DEFAULT FALSE,
+    two_factor_secret VARCHAR(255),
+    backup_codes JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    last_active TIMESTAMP NULL
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Chat sessions table
 CREATE TABLE IF NOT EXISTS chat_sessions (
-    id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL,
-    status VARCHAR(20) DEFAULT 'active', -- active, archived, deleted
+    status ENUM('active', 'completed', 'archived') DEFAULT 'active',
+    language ENUM('en', 'fr') DEFAULT 'en',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
 );
 
 -- Chat messages table
 CREATE TABLE IF NOT EXISTS chat_messages (
-    id VARCHAR(36) PRIMARY KEY,
-    session_id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36) NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    session_id VARCHAR(255) NOT NULL,
+    role ENUM('user', 'assistant') NOT NULL,
     content TEXT NOT NULL,
-    sender VARCHAR(10) NOT NULL, -- 'user' or 'ai'
-    metadata JSON, -- for storing AI response metadata
+    category VARCHAR(100),
+    confidence DECIMAL(3,2),
+    references JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    INDEX idx_session_id (session_id),
+    INDEX idx_created_at (created_at)
 );
 
 -- Lawyers table
 CREATE TABLE IF NOT EXISTS lawyers (
-    id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    license_number VARCHAR(50) NOT NULL UNIQUE,
-    specialization VARCHAR(100) NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    license_number VARCHAR(100) UNIQUE NOT NULL,
+    specialization JSON NOT NULL,
     experience_years INT NOT NULL,
-    practice_areas JSON NOT NULL, -- Array stored as JSON
-    languages JSON NOT NULL, -- Array stored as JSON
-    office_address TEXT,
-    description TEXT,
-    hourly_rate INT, -- Store as cents
-    verified BOOLEAN DEFAULT FALSE,
-    rating INT DEFAULT 0, -- Store as integer (e.g. 450 = 4.5 rating)
-    total_reviews INT DEFAULT 0,
+    location VARCHAR(255) NOT NULL,
+    languages JSON NOT NULL,
+    hourly_rate DECIMAL(10,2),
+    bio TEXT,
+    education JSON,
+    certifications JSON,
+    availability_schedule JSON,
+    is_verified BOOLEAN DEFAULT FALSE,
+    rating DECIMAL(2,1) DEFAULT 0.0,
+    total_ratings INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_specialization (specialization(255)),
+    INDEX idx_location (location),
+    INDEX idx_rating (rating),
+    INDEX idx_verified (is_verified)
 );
 
 -- Lawyer ratings table
 CREATE TABLE IF NOT EXISTS lawyer_ratings (
-    id VARCHAR(36) PRIMARY KEY,
-    lawyer_id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36) NOT NULL,
-    rating INT NOT NULL, -- 1-5 scale
+    id VARCHAR(255) PRIMARY KEY,
+    lawyer_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
     review TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (lawyer_id) REFERENCES lawyers(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_lawyer_rating (user_id, lawyer_id),
+    INDEX idx_lawyer_id (lawyer_id),
+    INDEX idx_rating (rating)
 );
 
 -- Verification codes table
 CREATE TABLE IF NOT EXISTS verification_codes (
-    id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
     code VARCHAR(10) NOT NULL,
-    type VARCHAR(30) NOT NULL, -- 'email_verification', '2fa_email', 'password_reset'
-    used BOOLEAN DEFAULT FALSE,
+    type ENUM('email_verification', 'password_reset', 'two_factor') NOT NULL,
     expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_type (user_id, type),
+    INDEX idx_expires_at (expires_at)
 );
 
 -- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
-    id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL, -- 'info', 'warning', 'success', 'error'
-    read BOOLEAN DEFAULT FALSE,
+    message TEXT NOT NULL,
+    type ENUM('info', 'warning', 'success', 'error') DEFAULT 'info',
+    read_status BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_read_status (read_status),
+    INDEX idx_created_at (created_at)
 );
 
--- Sessions table for express session storage
+-- Sessions table for express-session
 CREATE TABLE IF NOT EXISTS sessions (
-    sid VARCHAR(255) NOT NULL PRIMARY KEY,
-    sess JSON NOT NULL,
-    expire TIMESTAMP NOT NULL,
-    INDEX expire_idx (expire)
+    session_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
+    expires INT(11) UNSIGNED NOT NULL,
+    data MEDIUMTEXT COLLATE utf8mb4_bin,
+    PRIMARY KEY (session_id)
 );
 
--- Add indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id);
-CREATE INDEX idx_chat_messages_session_id ON chat_messages(session_id);
-CREATE INDEX idx_chat_messages_user_id ON chat_messages(user_id);
-CREATE INDEX idx_lawyers_user_id ON lawyers(user_id);
-CREATE INDEX idx_lawyer_ratings_lawyer_id ON lawyer_ratings(lawyer_id);
-CREATE INDEX idx_verification_codes_user_id ON verification_codes(user_id);
-CREATE INDEX idx_verification_codes_type ON verification_codes(type);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+-- Insert sample data for testing
+INSERT IGNORE INTO users (id, email, password, first_name, last_name, role, email_verified) VALUES
+('admin-1', 'admin@lawhelp.com', '$2b$10$rQ0mzYzQ0mzQ0mzQ0mzQ0u', 'Admin', 'User', 'admin', TRUE),
+('lawyer-1', 'lawyer@lawhelp.com', '$2b$10$rQ0mzYzQ0mzQ0mzQ0mzQ0u', 'John', 'Lawyer', 'lawyer', TRUE),
+('user-1', 'user@lawhelp.com', '$2b$10$rQ0mzYzQ0mzQ0mzQ0mzQ0u', 'Jane', 'User', 'user', TRUE);
+
+INSERT IGNORE INTO lawyers (id, user_id, license_number, specialization, experience_years, location, languages, hourly_rate, bio, is_verified, rating, total_ratings) VALUES
+('lawyer-profile-1', 'lawyer-1', 'BAR12345', '["Family Law", "Criminal Law"]', 10, 'Douala, Cameroon', '["English", "French"]', 75.00, 'Experienced lawyer specializing in family and criminal law with 10 years of practice in Cameroon.', TRUE, 4.5, 20);
+
+COMMIT;

@@ -1,164 +1,202 @@
-import { z } from "zod";
-import { nanoid } from "nanoid";
+import { createInsertSchema } from 'drizzle-zod';
+import { mysqlTable, varchar, text, timestamp, boolean, int, decimal, json, mysqlEnum } from 'drizzle-orm/mysql-core';
+import { relations } from 'drizzle-orm';
+import { z } from 'zod';
 
-// Type definitions for the legal assistance application
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  passwordHash: string;
-  isLawyer: boolean;
-  twoFactorEnabled: boolean;
-  twoFactorMethod?: string; // 'email' or 'totp'
-  twoFactorSecret?: string; // TOTP secret
-  phone?: string;
-  location?: string;
-  profileImageUrl?: string;
-  emailVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  lastActive?: Date;
-}
-
-export interface ChatSession {
-  id: string;
-  userId: string;
-  title: string;
-  status: string; // active, archived, deleted
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ChatMessage {
-  id: string;
-  sessionId: string;
-  userId: string;
-  content: string;
-  sender: string; // 'user' or 'ai'
-  metadata?: any; // for storing AI response metadata
-  createdAt: Date;
-}
-
-export interface Lawyer {
-  id: string;
-  userId: string;
-  licenseNumber: string;
-  specialization: string;
-  experienceYears: number;
-  practiceAreas: string[]; // Array of practice areas
-  languages: string[]; // Array of languages
-  officeAddress?: string;
-  description?: string;
-  hourlyRate?: number; // Store as cents
-  verified: boolean;
-  rating: number; // Store as integer (e.g. 450 = 4.5 rating)
-  totalReviews: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface LawyerRating {
-  id: string;
-  lawyerId: string;
-  userId: string;
-  rating: number; // 1-5 scale
-  review?: string;
-  createdAt: Date;
-}
-
-export interface VerificationCode {
-  id: string;
-  userId: string;
-  code: string;
-  type: string; // 'email_verification', '2fa_email', 'password_reset'
-  used: boolean;
-  expiresAt: Date;
-  createdAt: Date;
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  content: string;
-  type: string; // 'info', 'warning', 'success', 'error'
-  read: boolean;
-  createdAt: Date;
-}
-
-// Insert schemas using Zod
-export const insertUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1),
-  passwordHash: z.string(),
-  isLawyer: z.boolean().default(false),
-  twoFactorEnabled: z.boolean().default(false),
-  twoFactorMethod: z.string().optional(),
-  twoFactorSecret: z.string().optional(),
-  phone: z.string().optional(),
-  location: z.string().optional(),
-  profileImageUrl: z.string().optional(),
-  emailVerified: z.boolean().default(false),
-  lastActive: z.date().optional(),
+// Users table
+export const users = mysqlTable("users", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
+  role: mysqlEnum("role", ["user", "lawyer", "admin"]).default("user"),
+  emailVerified: boolean("email_verified").default(false),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: varchar("two_factor_secret", { length: 255 }),
+  backupCodes: json("backup_codes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-export const insertChatSessionSchema = z.object({
-  userId: z.string(),
-  title: z.string().min(1),
-  status: z.string().default("active"),
+// Chat sessions table
+export const chatSessions = mysqlTable("chat_sessions", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  status: mysqlEnum("status", ["active", "completed", "archived"]).default("active"),
+  language: mysqlEnum("language", ["en", "fr"]).default("en"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-export const insertChatMessageSchema = z.object({
-  sessionId: z.string(),
-  userId: z.string(),
-  content: z.string().min(1),
-  sender: z.enum(["user", "ai"]),
-  metadata: z.any().optional(),
+// Chat messages table
+export const chatMessages = mysqlTable("chat_messages", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  sessionId: varchar("session_id", { length: 255 }).notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  category: varchar("category", { length: 100 }),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }),
+  references: json("references"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertLawyerSchema = z.object({
-  userId: z.string(),
-  licenseNumber: z.string(),
-  specialization: z.string(),
-  experienceYears: z.number().min(0),
-  practiceAreas: z.array(z.string()),
-  languages: z.array(z.string()),
-  officeAddress: z.string().optional(),
-  description: z.string().optional(),
-  hourlyRate: z.number().optional(),
-  verified: z.boolean().default(false),
-  rating: z.number().default(0),
-  totalReviews: z.number().default(0),
+// Lawyers table
+export const lawyers = mysqlTable("lawyers", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  licenseNumber: varchar("license_number", { length: 100 }).notNull().unique(),
+  specialization: json("specialization").notNull(),
+  experienceYears: int("experience_years").notNull(),
+  location: varchar("location", { length: 255 }).notNull(),
+  languages: json("languages").notNull(),
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
+  bio: text("bio"),
+  education: json("education"),
+  certifications: json("certifications"),
+  availabilitySchedule: json("availability_schedule"),
+  isVerified: boolean("is_verified").default(false),
+  rating: decimal("rating", { precision: 2, scale: 1 }).default("0.0"),
+  totalRatings: int("total_ratings").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-export const insertLawyerRatingSchema = z.object({
-  lawyerId: z.string(),
-  userId: z.string(),
-  rating: z.number().min(1).max(5),
-  review: z.string().optional(),
+// Lawyer ratings table
+export const lawyerRatings = mysqlTable("lawyer_ratings", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  lawyerId: varchar("lawyer_id", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  rating: int("rating").notNull(),
+  review: text("review"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertVerificationCodeSchema = z.object({
-  userId: z.string(),
-  code: z.string(),
-  type: z.string(),
-  used: z.boolean().default(false),
-  expiresAt: z.date(),
+// Verification codes table
+export const verificationCodes = mysqlTable("verification_codes", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  code: varchar("code", { length: 10 }).notNull(),
+  type: mysqlEnum("type", ["email_verification", "password_reset", "two_factor"]).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertNotificationSchema = z.object({
-  userId: z.string(),
-  title: z.string(),
-  content: z.string(),
-  type: z.enum(["info", "warning", "success", "error"]),
-  read: z.boolean().default(false),
+// Notifications table
+export const notifications = mysqlTable("notifications", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: mysqlEnum("type", ["info", "warning", "success", "error"]).default("info"),
+  readStatus: boolean("read_status").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Insert types
+// Sessions table for express-session
+export const sessions = mysqlTable("sessions", {
+  sessionId: varchar("session_id", { length: 128 }).primaryKey(),
+  expires: int("expires").notNull(),
+  data: text("data"),
+});
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  chatSessions: many(chatSessions),
+  lawyers: many(lawyers),
+  lawyerRatings: many(lawyerRatings),
+  verificationCodes: many(verificationCodes),
+  notifications: many(notifications),
+}));
+
+export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chatSessions.userId],
+    references: [users.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  session: one(chatSessions, {
+    fields: [chatMessages.sessionId],
+    references: [chatSessions.id],
+  }),
+}));
+
+export const lawyersRelations = relations(lawyers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [lawyers.userId],
+    references: [users.id],
+  }),
+  ratings: many(lawyerRatings),
+}));
+
+export const lawyerRatingsRelations = relations(lawyerRatings, ({ one }) => ({
+  lawyer: one(lawyers, {
+    fields: [lawyerRatings.lawyerId],
+    references: [lawyers.id],
+  }),
+  user: one(users, {
+    fields: [lawyerRatings.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLawyerSchema = createInsertSchema(lawyers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLawyerRatingSchema = createInsertSchema(lawyerRatings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertVerificationCodeSchema = createInsertSchema(verificationCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type ChatSession = typeof chatSessions.$inferSelect;
 export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type Lawyer = typeof lawyers.$inferSelect;
 export type InsertLawyer = z.infer<typeof insertLawyerSchema>;
+export type LawyerRating = typeof lawyerRatings.$inferSelect;
 export type InsertLawyerRating = z.infer<typeof insertLawyerRatingSchema>;
+export type VerificationCode = typeof verificationCodes.$inferSelect;
 export type InsertVerificationCode = z.infer<typeof insertVerificationCodeSchema>;
+export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;

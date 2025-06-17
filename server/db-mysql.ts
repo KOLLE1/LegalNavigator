@@ -29,14 +29,4 @@ async function createDatabaseConnection() {
   }
 }
 
-let db: any = null;
-
-async function initializeDatabase() {
-  if (!db) {
-    db = await createDatabaseConnection();
-  }
-  return db;
-}
-
-export { initializeDatabase };
-export { db };
+export const initializeDatabase = createDatabaseConnection;

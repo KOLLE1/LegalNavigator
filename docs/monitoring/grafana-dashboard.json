@@ -1,0 +1,144 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "LawHelp Application Monitoring",
+    "tags": ["lawhelp", "application", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"lawhelp-app\"}",
+            "legendFormat": "Application Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Response Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "lawhelp_http_request_duration_seconds",
+            "legendFormat": "Response Time ({{method}} {{status_code}})"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Seconds",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Active Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "lawhelp_active_users_total",
+            "legendFormat": "Active Users"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Chat Sessions",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "lawhelp_chat_sessions_total",
+            "legendFormat": "Total Sessions"
+          },
+          {
+            "expr": "lawhelp_active_chat_sessions",
+            "legendFormat": "Active Sessions"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 18, "x": 6, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "lawhelp_memory_usage_bytes",
+            "legendFormat": "Memory Usage"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Bytes",
+            "min": 0
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(lawhelp_http_requests_total{status_code=~\"5..\"}[5m])",
+            "legendFormat": "5xx Errors"
+          },
+          {
+            "expr": "rate(lawhelp_http_requests_total{status_code=~\"4..\"}[5m])",
+            "legendFormat": "4xx Errors"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Database Connections",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "lawhelp_database_connections_active",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "AI Query Processing Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "lawhelp_ai_query_duration_seconds",
+            "legendFormat": "AI Processing Time"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 18, "x": 6, "y": 24}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

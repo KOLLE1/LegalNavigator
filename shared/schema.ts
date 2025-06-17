@@ -1,108 +1,110 @@
-import { pgTable, text, serial, integer, boolean, timestamp, uuid, jsonb, index } from "drizzle-orm/pg-core";
+import { mysqlTable, text, int, boolean, timestamp, varchar, json, index } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 // Users table
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
+export const users = mysqlTable("users", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
   passwordHash: text("password_hash").notNull(),
   isLawyer: boolean("is_lawyer").default(false),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
-  twoFactorMethod: text("two_factor_method"),
-  twoFactorSecret: text("two_factor_secret"),
-  phone: text("phone"),
-  location: text("location"),
+  twoFactorMethod: varchar("two_factor_method", { length: 20 }), // 'email' or 'totp'
+  twoFactorSecret: text("two_factor_secret"), // TOTP secret
+  phone: varchar("phone", { length: 20 }),
+  location: varchar("location", { length: 255 }),
   profileImageUrl: text("profile_image_url"),
   emailVerified: boolean("email_verified").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   lastActive: timestamp("last_active"),
 });
 
 // Chat sessions table
-export const chatSessions = pgTable("chat_sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  status: text("status").default("active"), // active, archived, deleted
+export const chatSessions = mysqlTable("chat_sessions", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  status: varchar("status", { length: 20 }).default("active"), // active, archived, deleted
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Chat messages table
-export const chatMessages = pgTable("chat_messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  sessionId: uuid("session_id").notNull().references(() => chatSessions.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const chatMessages = mysqlTable("chat_messages", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sessionId: varchar("session_id", { length: 36 }).notNull().references(() => chatSessions.id, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
-  sender: text("sender").notNull(), // 'user' or 'ai'
-  metadata: jsonb("metadata"), // for storing AI response metadata
+  sender: varchar("sender", { length: 10 }).notNull(), // 'user' or 'ai'
+  metadata: json("metadata"), // for storing AI response metadata
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Lawyers table
-export const lawyers = pgTable("lawyers", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  licenseNumber: text("license_number").notNull().unique(),
-  specialization: text("specialization").notNull(),
-  experienceYears: integer("experience_years").notNull(),
-  practiceAreas: text("practice_areas").array(),
-  languages: text("languages").array(),
+export const lawyers = mysqlTable("lawyers", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  licenseNumber: varchar("license_number", { length: 50 }).notNull().unique(),
+  specialization: varchar("specialization", { length: 100 }).notNull(),
+  experienceYears: int("experience_years").notNull(),
+  practiceAreas: json("practice_areas").notNull(), // Array stored as JSON
+  languages: json("languages").notNull(), // Array stored as JSON
   officeAddress: text("office_address"),
   description: text("description"),
-  hourlyRate: integer("hourly_rate"),
+  hourlyRate: int("hourly_rate"), // Store as cents
   verified: boolean("verified").default(false),
-  rating: integer("rating").default(0),
-  totalReviews: integer("total_reviews").default(0),
+  rating: int("rating").default(0), // Store as integer (e.g. 450 = 4.5 rating)
+  totalReviews: int("total_reviews").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Lawyer ratings table
-export const lawyerRatings = pgTable("lawyer_ratings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  lawyerId: uuid("lawyer_id").notNull().references(() => lawyers.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  rating: integer("rating").notNull(),
+export const lawyerRatings = mysqlTable("lawyer_ratings", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  lawyerId: varchar("lawyer_id", { length: 36 }).notNull().references(() => lawyers.id, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: int("rating").notNull(), // 1-5 scale
   review: text("review"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Verification codes table (for 2FA and email verification)
-export const verificationCodes = pgTable("verification_codes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  code: text("code").notNull(),
-  type: text("type").notNull(), // 'email_verification', 'two_factor', 'password_reset'
-  expiresAt: timestamp("expires_at").notNull(),
+// Verification codes table
+export const verificationCodes = mysqlTable("verification_codes", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  code: varchar("code", { length: 10 }).notNull(),
+  type: varchar("type", { length: 30 }).notNull(), // 'email_verification', '2fa_email', 'password_reset'
   used: boolean("used").default(false),
+  expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Notifications table
-export const notifications = pgTable("notifications", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
+export const notifications = mysqlTable("notifications", {
+  id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
   content: text("content").notNull(),
-  type: text("type").notNull(), // 'info', 'warning', 'success', 'error'
+  type: varchar("type", { length: 20 }).notNull(), // 'info', 'warning', 'success', 'error'
   read: boolean("read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Sessions table for express-session
-export const sessions = pgTable(
+// Sessions table for express session storage
+export const sessions = mysqlTable(
   "sessions",
   {
-    sid: text("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
+    sid: varchar("sid", { length: 255 }).notNull().primaryKey(),
+    sess: json("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (table) => ({
+    expireIdx: index("expire_idx").on(table.expire),
+  })
 );
 
 // Relations
@@ -111,8 +113,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   chatMessages: many(chatMessages),
   lawyer: one(lawyers, { fields: [users.id], references: [lawyers.userId] }),
   lawyerRatings: many(lawyerRatings),
-  notifications: many(notifications),
   verificationCodes: many(verificationCodes),
+  notifications: many(notifications),
 }));
 
 export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
@@ -135,12 +137,11 @@ export const lawyerRatingsRelations = relations(lawyerRatings, ({ one }) => ({
   user: one(users, { fields: [lawyerRatings.userId], references: [users.id] }),
 }));
 
-// Zod schemas
+// Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  lastActive: true,
 });
 
 export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({
@@ -158,8 +159,6 @@ export const insertLawyerSchema = createInsertSchema(lawyers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  rating: true,
-  totalReviews: true,
 });
 
 export const insertLawyerRatingSchema = createInsertSchema(lawyerRatings).omit({

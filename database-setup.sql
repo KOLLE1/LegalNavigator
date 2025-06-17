@@ -140,23 +140,16 @@ INSERT IGNORE INTO lawyers (id, user_id, license_number, specialization, experie
 COMMIT;
 
 -- Create indexes for better performance
-CREATE INDEX idx_chat_messages_session_id ON chat_messages(session_id);
-CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
-CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id);
-CREATE INDEX idx_chat_sessions_created_at ON chat_sessions(created_at);
--- The following index will cause error
--- You should define virtual column for JSON indexing.
--- ALTER TABLE lawyers ADD COLUMN specialization_area VARCHAR(255) GENERATED ALWAYS AS (specialization->"$.area");
--- CREATE INDEX idx_lawyers_specialization ON lawyers(specialization_area);
-CREATE INDEX idx_lawyers_location ON lawyers(location);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_created_at ON chat_sessions(created_at);
+CREATE INDEX IF NOT EXISTS idx_lawyers_location ON lawyers(location);
 CREATE INDEX IF NOT EXISTS idx_rating ON lawyer_ratings(rating);
-CREATE INDEX IF NOT EXISTS idx_created_at ON lawyer_ratings(created_at);
-CREATE INDEX IF NOT EXISTS idx_user_chat ON chat_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_session_messages ON chat_messages(session_id);
-CREATE INDEX IF NOT EXISTS idx_message_timestamp ON chat_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_lawyer_ratings_created_at ON lawyer_ratings(created_at);
 CREATE INDEX IF NOT EXISTS idx_user_notifications ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_read_status ON notifications(read_status);
-CREATE INDEX IF NOT EXISTS idx_created_at ON notifications(created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
 CREATE INDEX IF NOT EXISTS idx_verification_email ON verification_codes(user_id, type);
 CREATE INDEX IF NOT EXISTS idx_verification_code ON verification_codes(code);
 CREATE INDEX IF NOT EXISTS idx_verification_expires ON verification_codes(expires_at);

@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS lawyers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_specialization (specialization(255)),
     INDEX idx_location (location),
     INDEX idx_rating (rating),
     INDEX idx_verified (is_verified)
@@ -139,3 +138,15 @@ INSERT IGNORE INTO lawyers (id, user_id, license_number, specialization, experie
 ('lawyer-profile-1', 'lawyer-1', 'BAR12345', '["Family Law", "Criminal Law"]', 10, 'Douala, Cameroon', '["English", "French"]', 75.00, 'Experienced lawyer specializing in family and criminal law with 10 years of practice in Cameroon.', TRUE, 4.5, 20);
 
 COMMIT;
+
+-- Create indexes for better performance
+CREATE INDEX idx_chat_messages_session_id ON chat_messages(session_id);
+CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
+CREATE INDEX idx_chat_sessions_user_id ON chat_sessions(user_id);
+CREATE INDEX idx_chat_sessions_created_at ON chat_sessions(created_at);
+-- The following index will cause error
+-- You should define virtual column for JSON indexing.
+-- ALTER TABLE lawyers ADD COLUMN specialization_area VARCHAR(255) GENERATED ALWAYS AS (specialization->"$.area");
+-- CREATE INDEX idx_lawyers_specialization ON lawyers(specialization_area);
+CREATE INDEX idx_lawyers_location ON lawyers(location);
+CREATE INDEX idx_rating ON lawyer_ratings(rating);

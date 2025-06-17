@@ -368,4 +368,258 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// In-memory storage implementation for Replit environment
+class MemStorage implements IStorage {
+  private users: Map<string, User> = new Map();
+  private chatSessions: Map<string, ChatSession> = new Map();
+  private chatMessages: Map<string, ChatMessage> = new Map();
+  private lawyers: Map<string, Lawyer> = new Map();
+  private lawyerRatings: Map<string, LawyerRating> = new Map();
+  private verificationCodes: Map<string, VerificationCode> = new Map();
+  private notifications: Map<string, Notification> = new Map();
+
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    for (const user of this.users.values()) {
+      if (user.email === email) return user;
+    }
+    return undefined;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const id = crypto.randomUUID();
+    const newUser: User = {
+      id,
+      ...user,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastActive: null,
+    };
+    this.users.set(id, newUser);
+    return newUser;
+  }
+
+  async updateUser(id: string, user: Partial<InsertUser>): Promise<User> {
+    const existing = this.users.get(id);
+    if (!existing) throw new Error('User not found');
+    
+    const updated: User = {
+      ...existing,
+      ...user,
+      updatedAt: new Date(),
+    };
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  // Chat operations
+  async createChatSession(session: InsertChatSession): Promise<ChatSession> {
+    const id = crypto.randomUUID();
+    const newSession: ChatSession = {
+      id,
+      ...session,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.chatSessions.set(id, newSession);
+    return newSession;
+  }
+
+  async getChatSessions(userId: string): Promise<ChatSession[]> {
+    return Array.from(this.chatSessions.values())
+      .filter(session => session.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getChatSession(id: string): Promise<ChatSession | undefined> {
+    return this.chatSessions.get(id);
+  }
+
+  async updateChatSession(id: string, session: Partial<InsertChatSession>): Promise<ChatSession> {
+    const existing = this.chatSessions.get(id);
+    if (!existing) throw new Error('Chat session not found');
+    
+    const updated: ChatSession = {
+      ...existing,
+      ...session,
+      updatedAt: new Date(),
+    };
+    this.chatSessions.set(id, updated);
+    return updated;
+  }
+
+  // Message operations
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const id = crypto.randomUUID();
+    const newMessage: ChatMessage = {
+      id,
+      ...message,
+      createdAt: new Date(),
+    };
+    this.chatMessages.set(id, newMessage);
+    return newMessage;
+  }
+
+  async getChatMessages(sessionId: string): Promise<ChatMessage[]> {
+    return Array.from(this.chatMessages.values())
+      .filter(message => message.sessionId === sessionId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  // Lawyer operations
+  async createLawyer(lawyer: InsertLawyer): Promise<Lawyer> {
+    const id = crypto.randomUUID();
+    const newLawyer: Lawyer = {
+      id,
+      ...lawyer,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.lawyers.set(id, newLawyer);
+    return newLawyer;
+  }
+
+  async getLawyers(filters?: {
+    specialization?: string;
+    location?: string;
+    language?: string;
+    minRating?: number;
+  }): Promise<(Lawyer & { user: User })[]> {
+    let lawyers = Array.from(this.lawyers.values()).filter(lawyer => lawyer.verified);
+    
+    if (filters) {
+      if (filters.specialization) {
+        lawyers = lawyers.filter(lawyer => 
+          lawyer.specialization.toLowerCase().includes(filters.specialization!.toLowerCase())
+        );
+      }
+      if (filters.minRating) {
+        lawyers = lawyers.filter(lawyer => lawyer.rating >= filters.minRating!);
+      }
+    }
+
+    const result = [];
+    for (const lawyer of lawyers) {
+      const user = this.users.get(lawyer.userId);
+      if (user) {
+        if (filters?.location && !user.location?.toLowerCase().includes(filters.location.toLowerCase())) {
+          continue;
+        }
+        if (filters?.language && !lawyer.languages.some(lang => 
+          lang.toLowerCase().includes(filters.language!.toLowerCase())
+        )) {
+          continue;
+        }
+        result.push({ ...lawyer, user });
+      }
+    }
+
+    return result.sort((a, b) => b.rating - a.rating);
+  }
+
+  async getLawyer(id: string): Promise<(Lawyer & { user: User }) | undefined> {
+    const lawyer = this.lawyers.get(id);
+    if (!lawyer) return undefined;
+    
+    const user = this.users.get(lawyer.userId);
+    if (!user) return undefined;
+    
+    return { ...lawyer, user };
+  }
+
+  async updateLawyer(id: string, lawyer: Partial<InsertLawyer>): Promise<Lawyer> {
+    const existing = this.lawyers.get(id);
+    if (!existing) throw new Error('Lawyer not found');
+    
+    const updated: Lawyer = {
+      ...existing,
+      ...lawyer,
+      updatedAt: new Date(),
+    };
+    this.lawyers.set(id, updated);
+    return updated;
+  }
+
+  // Rating operations
+  async createLawyerRating(rating: InsertLawyerRating): Promise<LawyerRating> {
+    const id = crypto.randomUUID();
+    const newRating: LawyerRating = {
+      id,
+      ...rating,
+      createdAt: new Date(),
+    };
+    this.lawyerRatings.set(id, newRating);
+    return newRating;
+  }
+
+  async getLawyerRatings(lawyerId: string): Promise<LawyerRating[]> {
+    return Array.from(this.lawyerRatings.values())
+      .filter(rating => rating.lawyerId === lawyerId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  // Verification operations
+  async createVerificationCode(code: InsertVerificationCode): Promise<VerificationCode> {
+    const id = crypto.randomUUID();
+    const newCode: VerificationCode = {
+      id,
+      ...code,
+      createdAt: new Date(),
+    };
+    this.verificationCodes.set(id, newCode);
+    return newCode;
+  }
+
+  async getVerificationCode(userId: string, type: string, code: string): Promise<VerificationCode | undefined> {
+    for (const verificationCode of this.verificationCodes.values()) {
+      if (
+        verificationCode.userId === userId &&
+        verificationCode.type === type &&
+        verificationCode.code === code &&
+        !verificationCode.used &&
+        verificationCode.expiresAt > new Date()
+      ) {
+        return verificationCode;
+      }
+    }
+    return undefined;
+  }
+
+  async markVerificationCodeUsed(id: string): Promise<void> {
+    const code = this.verificationCodes.get(id);
+    if (code) {
+      this.verificationCodes.set(id, { ...code, used: true });
+    }
+  }
+
+  // Notification operations
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const id = crypto.randomUUID();
+    const newNotification: Notification = {
+      id,
+      ...notification,
+      createdAt: new Date(),
+    };
+    this.notifications.set(id, newNotification);
+    return newNotification;
+  }
+
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    const notification = this.notifications.get(id);
+    if (notification) {
+      this.notifications.set(id, { ...notification, read: true });
+    }
+  }
+}
+
+export const storage = new MemStorage();

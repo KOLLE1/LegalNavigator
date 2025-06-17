@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lawhelp
+  labels:
+    name: lawhelp
+    environment: production

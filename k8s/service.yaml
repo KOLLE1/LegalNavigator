@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lawhelp-service
+  namespace: lawhelp
+  labels:
+    app: lawhelp
+spec:
+  selector:
+    app: lawhelp
+    tier: application
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lawhelp-nodeport
+  namespace: lawhelp
+  labels:
+    app: lawhelp
+spec:
+  selector:
+    app: lawhelp
+    tier: application
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+    nodePort: 30080
+    name: http
+  type: NodePort

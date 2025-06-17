@@ -2,64 +2,59 @@ pipeline {
     agent any
     
     environment {
-        NODE_VERSION = '20'
-        DOCKER_IMAGE = 'lawhelp-app'
+        DOCKER_IMAGE = 'lawhelp'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        REGISTRY = 'localhost:5000'
+        KUBECONFIG = credentials('kubeconfig')
+        DOCKER_REGISTRY = 'your-registry.com'
     }
     
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+                echo "Checked out source code from repository"
             }
         }
         
         stage('Install Dependencies') {
             steps {
                 script {
-                    sh '''
-                        node --version
-                        npm --version
-                        npm ci
-                    '''
+                    echo "Installing Node.js dependencies"
+                    sh 'npm ci'
                 }
             }
         }
         
-        stage('Lint') {
-            steps {
-                sh 'npm run lint || true'
-            }
-        }
-        
-        stage('Test') {
-            steps {
-                sh 'npm test'
-                publishTestResults testResultsPattern: 'test-results.xml'
-                publishCoverageReport sourceFileResolver: sourceFiles('NEVER_STORE'), coverageFiles: 'coverage/lcov.info'
-            }
-        }
-        
-        stage('Build') {
-            steps {
-                sh 'npm run build'
-            }
-        }
-        
-        stage('Security Scan') {
-            steps {
-                sh 'npm audit --audit-level=moderate'
-            }
-        }
-        
-        stage('Docker Build') {
+        stage('Lint and Type Check') {
             steps {
                 script {
-                    sh '''
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                    '''
+                    echo "Running ESLint and TypeScript checks"
+                    sh 'npm run check'
+                }
+            }
+        }
+        
+        stage('Unit Tests') {
+            steps {
+                script {
+                    echo "Running unit tests with coverage"
+                    sh 'npm test -- --coverage --watchAll=false'
+                }
+                publishTestResults(
+                    testResultsPattern: 'coverage/lcov.info',
+                    allowEmptyResults: false
+                )
+            }
+            post {
+                always {
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'coverage',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
                 }
             }
         }
@@ -67,33 +62,39 @@ pipeline {
         stage('Integration Tests') {
             steps {
                 script {
-                    sh '''
-                        docker-compose -f docker-compose.test.yml up -d
-                        npm run test:integration
-                        docker-compose -f docker-compose.test.yml down
-                    '''
+                    echo "Running integration tests"
+                    sh 'npm run test:integration'
                 }
             }
         }
         
-        stage('Push to Registry') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'develop'
-                }
-            }
+        stage('Security Scan') {
             steps {
                 script {
-                    sh '''
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker push ${REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}
-                        
-                        if [ "${BRANCH_NAME}" = "main" ]; then
-                            docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${REGISTRY}/${DOCKER_IMAGE}:stable
-                            docker push ${REGISTRY}/${DOCKER_IMAGE}:stable
-                        fi
-                    '''
+                    echo "Running security vulnerability scan"
+                    sh 'npm audit --audit-level=moderate'
+                }
+            }
+        }
+        
+        stage('Build Application') {
+            steps {
+                script {
+                    echo "Building production application"
+                    sh 'npm run build'
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "Building Docker image"
+                    def image = docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-registry-credentials') {
+                        image.push()
+                        image.push('latest')
+                    }
                 }
             }
         }
@@ -104,13 +105,23 @@ pipeline {
             }
             steps {
                 script {
-                    sh '''
-                        kubectl config use-context staging
-                        helm upgrade --install lawhelp-staging ./k8s/helm-chart \
-                            --set image.tag=${DOCKER_TAG} \
-                            --set environment=staging \
-                            --namespace staging
-                    '''
+                    echo "Deploying to staging environment"
+                    sh """
+                        kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp-staging
+                        kubectl rollout status deployment/lawhelp-app -n lawhelp-staging
+                    """
+                }
+            }
+        }
+        
+        stage('End-to-End Tests') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    echo "Running E2E tests against staging"
+                    sh 'npm run test:e2e'
                 }
             }
         }
@@ -121,19 +132,16 @@ pipeline {
             }
             steps {
                 script {
-                    input message: 'Deploy to Production?', ok: 'Deploy'
-                    sh '''
-                        kubectl config use-context production
-                        helm upgrade --install lawhelp-prod ./k8s/helm-chart \
-                            --set image.tag=${DOCKER_TAG} \
-                            --set environment=production \
-                            --namespace production
-                    '''
+                    echo "Deploying to production environment"
+                    sh """
+                        kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp
+                        kubectl rollout status deployment/lawhelp-app -n lawhelp
+                    """
                 }
             }
         }
         
-        stage('Post-Deploy Tests') {
+        stage('Post-Deploy Verification') {
             when {
                 anyOf {
                     branch 'main'
@@ -142,7 +150,8 @@ pipeline {
             }
             steps {
                 script {
-                    sh 'npm run test:e2e'
+                    echo "Running post-deployment health checks"
+                    sh 'npm run test:health'
                 }
             }
         }
@@ -153,19 +162,19 @@ pipeline {
             cleanWs()
         }
         success {
-            echo 'Pipeline completed successfully!'
+            echo "Pipeline completed successfully!"
             slackSend(
                 channel: '#deployments',
                 color: 'good',
-                message: "✅ ${env.JOB_NAME} - Build #${env.BUILD_NUMBER} succeeded (<${env.BUILD_URL}|Open>)"
+                message: "✅ LawHelp deployment successful - Build ${BUILD_NUMBER}"
             )
         }
         failure {
-            echo 'Pipeline failed!'
+            echo "Pipeline failed!"
             slackSend(
                 channel: '#deployments',
                 color: 'danger',
-                message: "❌ ${env.JOB_NAME} - Build #${env.BUILD_NUMBER} failed (<${env.BUILD_URL}|Open>)"
+                message: "❌ LawHelp deployment failed - Build ${BUILD_NUMBER}"
             )
         }
     }

@@ -1,5 +1,16 @@
 import '@testing-library/jest-dom';
 
+// Mock WebSocket
+global.WebSocket = jest.fn(() => ({
+  send: jest.fn(),
+  close: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+})) as any;
+
+// Mock fetch
+global.fetch = jest.fn();
+
 // Mock localStorage
 const localStorageMock = {
   getItem: jest.fn(),
@@ -9,20 +20,18 @@ const localStorageMock = {
 };
 global.localStorage = localStorageMock as any;
 
-// Mock fetch for API calls
-global.fetch = jest.fn();
+// Mock process.env for tests
+process.env.JWT_SECRET = 'test-secret';
+process.env.NODE_ENV = 'test';
 
-// Mock console.error to avoid noise in tests
-const originalError = console.error;
-beforeAll(() => {
-  console.error = jest.fn();
-});
-
-afterAll(() => {
-  console.error = originalError;
-});
-
-// Reset mocks before each test
-beforeEach(() => {
-  jest.clearAllMocks();
-});
+// Suppress console.log in tests unless debugging
+if (process.env.NODE_ENV === 'test') {
+  global.console = {
+    ...console,
+    log: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
+}

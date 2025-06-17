@@ -395,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (method === 'email') {
         const verificationCode = await storage.getVerificationCode(user.id, '2fa_setup', code);
         isValid = !!verificationCode;
-        if (isValid) {
+        if (isValid && verificationCode) {
           await storage.markVerificationCodeUsed(verificationCode.id);
         }
       }
@@ -462,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (method === 'email') {
         const verificationCode = await storage.getVerificationCode(userId, '2fa_email', code);
         isValid = !!verificationCode;
-        if (isValid) {
+        if (isValid && verificationCode) {
           await storage.markVerificationCodeUsed(verificationCode.id);
         }
       }

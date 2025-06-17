@@ -17,13 +17,14 @@ LawHelp is a full-stack web application that provides AI-powered legal assistanc
 ### Backend Architecture
 - **Runtime**: Node.js 20 with Express.js
 - **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: MySQL 8.0+ with Drizzle ORM
 - **Authentication**: JWT-based authentication with bcrypt password hashing
+- **2FA Options**: Email (via FormSubmit) and TOTP (authenticator apps)
 - **AI Integration**: OpenAI API for legal assistance
 - **Real-time Communication**: WebSocket support for live chat
 
 ### Database Schema
-The application uses PostgreSQL with the following key entities:
+The application uses MySQL with the following key entities:
 - **Users**: User accounts with authentication and profile information
 - **Chat Sessions**: Conversation containers for organizing legal consultations
 - **Chat Messages**: Individual messages in conversations (user and AI)
@@ -43,8 +44,11 @@ The application uses PostgreSQL with the following key entities:
 ### Authentication System
 - JWT-based authentication with secure token management
 - Password hashing using bcrypt
-- Two-factor authentication support (Email/SMS)
+- Enhanced two-factor authentication with dual options:
+  - Email-based 2FA using FormSubmit (free service)
+  - TOTP-based 2FA supporting Google Authenticator, Authy, 1Password
 - Email verification for account security
+- Backup codes for TOTP recovery
 
 ### Chat System
 - Real-time messaging using WebSockets
@@ -76,11 +80,14 @@ The application uses PostgreSQL with the following key entities:
 ## External Dependencies
 
 ### Core Dependencies
-- **@neondatabase/serverless**: PostgreSQL database connection
-- **drizzle-orm**: Type-safe database ORM
+- **mysql2**: MySQL database connection
+- **drizzle-orm**: Type-safe database ORM with MySQL support
 - **express**: Web application framework
 - **jsonwebtoken**: JWT authentication
 - **bcrypt**: Password hashing
+- **speakeasy**: TOTP generation and verification
+- **qrcode**: QR code generation for TOTP setup
+- **node-fetch**: HTTP requests for FormSubmit integration
 - **ws**: WebSocket implementation
 
 ### Frontend Dependencies
@@ -98,7 +105,8 @@ The application uses PostgreSQL with the following key entities:
 
 ### Development Environment
 - **Platform**: Replit with Node.js 20 runtime
-- **Database**: PostgreSQL 16 with Drizzle migrations
+- **Database**: MySQL 8.0+ with connection pooling
+- **External Database**: Supports local MySQL Workbench setup
 - **Hot Reload**: Vite development server with HMR
 - **Port Configuration**: Frontend on port 5000, WebSocket on same port
 
@@ -109,7 +117,11 @@ The application uses PostgreSQL with the following key entities:
 - **Deployment**: Autoscale deployment target on Replit
 
 ### Environment Variables
-- `DATABASE_URL`: PostgreSQL connection string
+- `DB_HOST`: MySQL server host (default: localhost)
+- `DB_USER`: MySQL username (default: root)
+- `DB_PASSWORD`: MySQL password
+- `DB_NAME`: MySQL database name (default: lawhelp_db)
+- `DB_PORT`: MySQL port (default: 3306)
 - `OPENAI_API_KEY`: OpenAI API authentication
 - `JWT_SECRET`: JWT token signing secret
 
@@ -117,7 +129,14 @@ The application uses PostgreSQL with the following key entities:
 
 ```
 Changelog:
-- June 17, 2025. Initial setup
+- June 17, 2025: Initial setup with PostgreSQL
+- June 17, 2025: Migrated to MySQL database with enhanced 2FA
+  - Added MySQL 8.0+ support with connection pooling
+  - Implemented dual 2FA options (Email + TOTP)
+  - Integrated FormSubmit for free email delivery
+  - Added TOTP support for authenticator apps
+  - Created comprehensive database setup scripts
+  - Enhanced security with backup codes and password verification
 ```
 
 ## User Preferences

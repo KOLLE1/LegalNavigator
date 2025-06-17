@@ -35,16 +35,19 @@ function authenticateToken(req: any, res: any, next: any) {
 
 // Generate random code for 2FA
 function generateVerificationCode(): string {
-  return crypto.randomInt(100000, 999999).toString();
+  return twoFactorService.generateEmailCode();
 }
 
-// Send verification code (mock email service)
+// Send verification code using FormSubmit
 async function sendVerificationCode(email: string, code: string, type: string): Promise<void> {
-  // In a real application, this would send an actual email
-  console.log(`Verification code for ${email} (${type}): ${code}`);
-  
-  // You can integrate with actual email service like SendGrid here
-  // For now, we'll just log it
+  try {
+    await twoFactorService.sendEmailCode(email, code, type);
+  } catch (error) {
+    console.error('Failed to send verification email:', error);
+    // For development purposes, also log the code
+    console.log(`Verification code for ${email} (${type}): ${code}`);
+    throw error;
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -321,6 +324,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 2FA Setup Routes
+  app.post('/api/auth/2fa/setup/totp', authenticateToken, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const totpSetup = await twoFactorService.generateTOTPSecret(user.email);
+      
+      // Store the secret temporarily (user needs to verify before it's saved)
+      await storage.updateUser(user.id, { 
+        twoFactorSecret: totpSetup.secret,
+        twoFactorMethod: 'totp'
+      });
+
+      res.json({
+        secret: totpSetup.secret,
+        qrCodeUrl: totpSetup.qrCodeUrl,
+        backupCodes: totpSetup.backupCodes
+      });
+    } catch (error) {
+      console.error('TOTP setup error:', error);
+      res.status(500).json({ message: 'Failed to setup TOTP' });
+    }
+  });
+
+  app.post('/api/auth/2fa/setup/email', authenticateToken, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Send test verification code
+      const testCode = generateVerificationCode();
+      await storage.createVerificationCode({
+        userId: user.id,
+        code: testCode,
+        type: '2fa_setup',
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      });
+
+      await sendVerificationCode(user.email, testCode, '2fa_email');
+
+      res.json({ message: 'Test code sent to your email. Please verify to enable email 2FA.' });
+    } catch (error) {
+      console.error('Email 2FA setup error:', error);
+      res.status(500).json({ message: 'Failed to setup email 2FA' });
+    }
+  });
+
+  app.post('/api/auth/2fa/verify-setup', authenticateToken, async (req: any, res) => {
+    try {
+      const { code, method } = req.body;
+      const user = await storage.getUser(req.user.userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      let isValid = false;
+
+      if (method === 'totp') {
+        if (!user.twoFactorSecret) {
+          return res.status(400).json({ message: 'TOTP not set up' });
+        }
+        isValid = twoFactorService.verifyTOTP(code, user.twoFactorSecret);
+      } else if (method === 'email') {
+        const verificationCode = await storage.getVerificationCode(user.id, '2fa_setup', code);
+        isValid = !!verificationCode;
+        if (isValid) {
+          await storage.markVerificationCodeUsed(verificationCode.id);
+        }
+      }
+
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+
+      // Enable 2FA
+      await storage.updateUser(user.id, { 
+        twoFactorEnabled: true,
+        twoFactorMethod: method
+      });
+
+      res.json({ message: '2FA enabled successfully' });
+    } catch (error) {
+      console.error('2FA verification setup error:', error);
+      res.status(500).json({ message: 'Failed to verify 2FA setup' });
+    }
+  });
+
+  app.post('/api/auth/2fa/disable', authenticateToken, async (req: any, res) => {
+    try {
+      const { password } = req.body;
+      const user = await storage.getUser(req.user.userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify password before disabling 2FA
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: 'Invalid password' });
+      }
+
+      await storage.updateUser(user.id, { 
+        twoFactorEnabled: false,
+        twoFactorMethod: null,
+        twoFactorSecret: null
+      });
+
+      res.json({ message: '2FA disabled successfully' });
+    } catch (error) {
+      console.error('2FA disable error:', error);
+      res.status(500).json({ message: 'Failed to disable 2FA' });
+    }
+  });
+
+  // Enhanced 2FA verification for login
+  app.post('/api/auth/verify-2fa-enhanced', async (req, res) => {
+    try {
+      const { userId, code, method } = req.body;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      let isValid = false;
+
+      if (method === 'totp' && user.twoFactorSecret) {
+        isValid = twoFactorService.verifyTOTP(code, user.twoFactorSecret);
+      } else if (method === 'email') {
+        const verificationCode = await storage.getVerificationCode(userId, '2fa_email', code);
+        isValid = !!verificationCode;
+        if (isValid) {
+          await storage.markVerificationCodeUsed(verificationCode.id);
+        }
+      }
+
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      // Update last active
+      await storage.updateUser(user.id, { lastActive: new Date() });
+
+      res.json({ 
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          isLawyer: user.isLawyer,
+          twoFactorEnabled: user.twoFactorEnabled,
+          twoFactorMethod: user.twoFactorMethod,
+        }
+      });
+    } catch (error) {
+      console.error('Enhanced 2FA verification error:', error);
+      res.status(500).json({ message: 'Enhanced 2FA verification failed' });
+    }
+  });
+
   // Protected routes
   app.get('/api/user/profile', authenticateToken, async (req: any, res) => {
     try {
@@ -338,6 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         profileImageUrl: user.profileImageUrl,
         isLawyer: user.isLawyer,
         twoFactorEnabled: user.twoFactorEnabled,
+        twoFactorMethod: user.twoFactorMethod,
         emailVerified: user.emailVerified,
       });
     } catch (error) {

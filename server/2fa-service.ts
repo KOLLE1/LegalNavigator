@@ -78,7 +78,7 @@ export class TwoFactorService {
         throw new Error(`FormSubmit error: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as { success?: string };
       if (result.success !== 'true') {
         throw new Error('Failed to send email via FormSubmit');
       }

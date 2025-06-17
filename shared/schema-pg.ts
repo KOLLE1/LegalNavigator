@@ -33,7 +33,7 @@ export const chatSessions = pgTable("chat_sessions", {
 });
 
 // Chat messages table
-export const chatMessages = mysqlTable("chat_messages", {
+export const chatMessages = pgTable("chat_messages", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   sessionId: varchar("session_id", { length: 36 }).notNull().references(() => chatSessions.id, { onDelete: "cascade" }),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -44,47 +44,47 @@ export const chatMessages = mysqlTable("chat_messages", {
 });
 
 // Lawyers table
-export const lawyers = mysqlTable("lawyers", {
+export const lawyers = pgTable("lawyers", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
   licenseNumber: varchar("license_number", { length: 50 }).notNull().unique(),
-  specialization: varchar("specialization", { length: 100 }).notNull(),
-  experienceYears: int("experience_years").notNull(),
-  practiceAreas: json("practice_areas").notNull(), // Array stored as JSON
-  languages: json("languages").notNull(), // Array stored as JSON
+  specialization: varchar("specialization", { length: 255 }).notNull(),
+  experienceYears: integer("experience_years").notNull(),
+  practiceAreas: json("practice_areas").notNull(), // Array of practice areas
+  languages: json("languages").notNull(), // Array of languages spoken
   officeAddress: text("office_address"),
   description: text("description"),
-  hourlyRate: int("hourly_rate"), // Store as cents
+  hourlyRate: integer("hourly_rate"),
   verified: boolean("verified").default(false),
-  rating: int("rating").default(0), // Store as integer (e.g. 450 = 4.5 rating)
-  totalReviews: int("total_reviews").default(0),
+  rating: integer("rating").default(0),
+  totalReviews: integer("total_reviews").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Lawyer ratings table
-export const lawyerRatings = mysqlTable("lawyer_ratings", {
+export const lawyerRatings = pgTable("lawyer_ratings", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   lawyerId: varchar("lawyer_id", { length: 36 }).notNull().references(() => lawyers.id, { onDelete: "cascade" }),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
-  rating: int("rating").notNull(), // 1-5 scale
+  rating: integer("rating").notNull(),
   review: text("review"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Verification codes table
-export const verificationCodes = mysqlTable("verification_codes", {
+// Verification codes table (for email verification and 2FA)
+export const verificationCodes = pgTable("verification_codes", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
   code: varchar("code", { length: 10 }).notNull(),
-  type: varchar("type", { length: 30 }).notNull(), // 'email_verification', '2fa_email', 'password_reset'
-  used: boolean("used").default(false),
+  type: varchar("type", { length: 20 }).notNull(), // 'email_verification', '2fa', 'password_reset'
   expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Notifications table
-export const notifications = mysqlTable("notifications", {
+export const notifications = pgTable("notifications", {
   id: varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
@@ -94,16 +94,16 @@ export const notifications = mysqlTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Sessions table for express session storage
-export const sessions = mysqlTable(
-  "sessions",
+// Sessions table for express-session
+export const sessions = pgTable(
+  "session",
   {
-    sid: varchar("sid", { length: 255 }).notNull().primaryKey(),
+    sid: varchar("sid", { length: 36 }).primaryKey(),
     sess: json("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
   (table) => ({
-    expireIdx: index("expire_idx").on(table.expire),
+    expireIdx: index("IDX_session_expire").on(table.expire),
   })
 );
 
@@ -111,30 +111,51 @@ export const sessions = mysqlTable(
 export const usersRelations = relations(users, ({ many, one }) => ({
   chatSessions: many(chatSessions),
   chatMessages: many(chatMessages),
-  lawyer: one(lawyers, { fields: [users.id], references: [lawyers.userId] }),
+  lawyerProfile: one(lawyers, {
+    fields: [users.id],
+    references: [lawyers.userId],
+  }),
   lawyerRatings: many(lawyerRatings),
   verificationCodes: many(verificationCodes),
   notifications: many(notifications),
 }));
 
 export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
-  user: one(users, { fields: [chatSessions.userId], references: [users.id] }),
+  user: one(users, {
+    fields: [chatSessions.userId],
+    references: [users.id],
+  }),
   messages: many(chatMessages),
 }));
 
 export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
-  session: one(chatSessions, { fields: [chatMessages.sessionId], references: [chatSessions.id] }),
-  user: one(users, { fields: [chatMessages.userId], references: [users.id] }),
+  session: one(chatSessions, {
+    fields: [chatMessages.sessionId],
+    references: [chatSessions.id],
+  }),
+  user: one(users, {
+    fields: [chatMessages.userId],
+    references: [users.id],
+  }),
 }));
 
 export const lawyersRelations = relations(lawyers, ({ one, many }) => ({
-  user: one(users, { fields: [lawyers.userId], references: [users.id] }),
+  user: one(users, {
+    fields: [lawyers.userId],
+    references: [users.id],
+  }),
   ratings: many(lawyerRatings),
 }));
 
 export const lawyerRatingsRelations = relations(lawyerRatings, ({ one }) => ({
-  lawyer: one(lawyers, { fields: [lawyerRatings.lawyerId], references: [lawyers.id] }),
-  user: one(users, { fields: [lawyerRatings.userId], references: [users.id] }),
+  lawyer: one(lawyers, {
+    fields: [lawyerRatings.lawyerId],
+    references: [lawyers.id],
+  }),
+  user: one(users, {
+    fields: [lawyerRatings.userId],
+    references: [users.id],
+  }),
 }));
 
 // Insert schemas
@@ -142,6 +163,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  lastActive: true,
 });
 
 export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({

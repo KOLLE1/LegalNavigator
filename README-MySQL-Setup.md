@@ -30,7 +30,8 @@ DB_PASSWORD=your_mysql_password
 DB_NAME=lawhelp_db
 DB_PORT=3306
 JWT_SECRET=your-super-secret-jwt-key-change-this
-OPENAI_API_KEY=your-openai-api-key-here
+CUSTOM_MODEL_ENDPOINT=http://localhost:8000/predict
+CUSTOM_MODEL_API_KEY=your-custom-model-api-key-if-needed
 NODE_ENV=development
 ```
 

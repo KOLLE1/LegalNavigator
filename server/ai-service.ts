@@ -12,7 +12,7 @@ interface LegalResponse {
   disclaimer: string;
 }
 
-interface CustomAIModel {
+export interface CustomAIModel {
   predict(prompt: string, options?: any): Promise<string>;
   categorize?(text: string): Promise<string>;
 }

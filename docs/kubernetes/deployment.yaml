@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lawhelp-app
+  namespace: production
+  labels:
+    app: lawhelp
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: lawhelp
+  template:
+    metadata:
+      labels:
+        app: lawhelp
+        version: v1.0.0
+    spec:
+      containers:
+      - name: lawhelp-app
+        image: localhost:5000/lawhelp-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: lawhelp-secrets
+              key: database-url
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: lawhelp-secrets
+              key: openai-api-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/ready
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        fsGroup: 1001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lawhelp-service
+  namespace: production
+  labels:
+    app: lawhelp
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: lawhelp
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lawhelp-ingress
+  namespace: production
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - lawhelp.cameroon.legal
+    secretName: lawhelp-tls
+  rules:
+  - host: lawhelp.cameroon.legal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: lawhelp-service
+            port:
+              number: 80

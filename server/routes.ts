@@ -142,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     ws.on('close', () => {
       // Remove connection from map
-      for (const [userId, connection] of wsConnections.entries()) {
+      for (const [userId, connection] of Array.from(wsConnections.entries())) {
         if (connection === ws) {
           wsConnections.delete(userId);
           break;
@@ -177,6 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id,
         code: verificationCode,
         type: 'email_verification',
+        used: false,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       });
 
@@ -225,6 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: user.id,
           code: twoFactorCode,
           type: 'two_factor',
+          used: false,
           expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
         });
 
@@ -364,6 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id,
         code: testCode,
         type: '2fa_setup',
+        used: false,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       });
 
@@ -434,8 +437,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateUser(user.id, { 
         twoFactorEnabled: false,
-        twoFactorMethod: null,
-        twoFactorSecret: null
+        twoFactorMethod: undefined,
+        twoFactorSecret: undefined
       });
 
       res.json({ message: '2FA disabled successfully' });

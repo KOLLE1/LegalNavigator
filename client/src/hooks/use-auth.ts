@@ -47,6 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isLoading: false,
           });
         } catch (error) {
+          console.error("Auth initialization failed:", error);
           localStorage.removeItem("auth_token");
           setAuthState({
             user: null,
@@ -65,7 +66,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    initAuth();
+    initAuth().catch(error => {
+      console.error("Unhandled auth initialization error:", error);
+      setAuthState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    });
   }, []);
 
   const login = async (email: string, password: string) => {

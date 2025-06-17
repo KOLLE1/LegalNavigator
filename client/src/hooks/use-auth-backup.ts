@@ -127,19 +127,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }));
   };
 
-  const contextValue = {
-    ...authState,
-    login,
-    register,
-    verifyEmail,
-    verify2FA,
-    logout,
-    updateProfile,
-  };
-
-  return React.createElement(
-    AuthContext.Provider,
-    { value: contextValue },
-    children
+  return (
+    <AuthContext.Provider
+      value={{
+        ...authState,
+        login,
+        register,
+        verifyEmail,
+        verify2FA,
+        logout,
+        updateProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
 }

@@ -39,7 +39,7 @@ export const chatMessages = mysqlTable("chat_messages", {
   content: text("content").notNull(),
   category: varchar("category", { length: 100 }),
   confidence: decimal("confidence", { precision: 3, scale: 2 }),
-  references: json("references"),
+  referencesData: json("references_data"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

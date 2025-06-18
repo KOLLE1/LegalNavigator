@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'lawhelp'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        KUBECONFIG = credentials('kubeconfig')
+        // KUBECONFIG = credentials('kubeconfig')
         DOCKER_REGISTRY = 'ghcr.io'
     }
     

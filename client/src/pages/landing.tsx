@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AuthModal } from "@/components/auth/auth-modal";
+import { Link } from "wouter";
 import { Scale, MessageSquare, Users, BookOpen, Shield, Zap } from "lucide-react";
 
 export default function Landing() {
@@ -78,13 +79,15 @@ export default function Landing() {
             >
               Start Free Chat
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="text-lg px-8 py-4"
-            >
-              Learn More
-            </Button>
+            <Link href="/about">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="text-lg px-8 py-4"
+              >
+                Learn More
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

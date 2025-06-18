@@ -17,6 +17,7 @@ import Lawyers from "@/pages/lawyers";
 import Sessions from "@/pages/sessions";
 import Knowledge from "@/pages/knowledge";
 import Profile from "@/pages/profile";
+import { About } from "@/pages/about";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRoutes() {
@@ -93,7 +94,10 @@ function Router() {
             <AuthenticatedRoutes />
           </Route>
         ) : (
-          <Route path="/" component={Landing} />
+          <>
+            <Route path="/about" component={About} />
+            <Route path="/" component={Landing} />
+          </>
         )}
       </Switch>
       

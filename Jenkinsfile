@@ -5,7 +5,7 @@ pipeline {
         DOCKER_IMAGE = 'lawhelp'
         DOCKER_TAG = "${BUILD_NUMBER}"
         KUBECONFIG = credentials('kubeconfig')
-        DOCKER_REGISTRY = 'your-registry.com'
+        DOCKER_REGISTRY = 'ghcr.io'
     }
     
     stages {
@@ -45,18 +45,18 @@ pipeline {
                     allowEmptyResults: false
                 )
             }
-            post {
-                always {
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'coverage',
-                        reportFiles: 'index.html',
-                        reportName: 'Coverage Report'
-                    ])
-                }
-            }
+            // post {
+            //     always {
+            //         publishHTML([
+            //             allowMissing: false,
+            //             alwaysLinkToLastBuild: true,
+            //             keepAll: true,
+            //             reportDir: 'coverage',
+            //             reportFiles: 'index.html',
+            //             reportName: 'Coverage Report'
+            //         ])
+            //     }
+            // }
         }
         
         stage('Integration Tests') {
@@ -99,63 +99,63 @@ pipeline {
             }
         }
         
-        stage('Deploy to Staging') {
-            when {
-                branch 'develop'
-            }
-            steps {
-                script {
-                    echo "Deploying to staging environment"
-                    sh """
-                        kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp-staging
-                        kubectl rollout status deployment/lawhelp-app -n lawhelp-staging
-                    """
-                }
-            }
-        }
+        // stage('Deploy to Staging') {
+        //     when {
+        //         branch 'develop'
+        //     }
+        //     steps {
+        //         script {
+        //             echo "Deploying to staging environment"
+        //             sh """
+        //                 kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp-staging
+        //                 kubectl rollout status deployment/lawhelp-app -n lawhelp-staging
+        //             """
+        //         }
+        //     }
+        // }
         
-        stage('End-to-End Tests') {
-            when {
-                branch 'develop'
-            }
-            steps {
-                script {
-                    echo "Running E2E tests against staging"
-                    sh 'npm run test:e2e'
-                }
-            }
-        }
+        // stage('End-to-End Tests') {
+        //     when {
+        //         branch 'develop'
+        //     }
+        //     steps {
+        //         script {
+        //             echo "Running E2E tests against staging"
+        //             sh 'npm run test:e2e'
+        //         }
+        //     }
+        // }
         
-        stage('Deploy to Production') {
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    echo "Deploying to production environment"
-                    sh """
-                        kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp
-                        kubectl rollout status deployment/lawhelp-app -n lawhelp
-                    """
-                }
-            }
-        }
+        // stage('Deploy to Production') {
+        //     when {
+        //         branch 'main'
+        //     }
+        //     steps {
+        //         script {
+        //             echo "Deploying to production environment"
+        //             sh """
+        //                 kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp
+        //                 kubectl rollout status deployment/lawhelp-app -n lawhelp
+        //             """
+        //         }
+        //     }
+        // }
         
-        stage('Post-Deploy Verification') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'develop'
-                }
-            }
-            steps {
-                script {
-                    echo "Running post-deployment health checks"
-                    sh 'npm run test:health'
-                }
-            }
-        }
-    }
+    //     stage('Post-Deploy Verification') {
+    //         when {
+    //             anyOf {
+    //                 branch 'main'
+    //                 branch 'develop'
+    //             }
+    //         }
+    //         steps {
+    //             script {
+    //                 echo "Running post-deployment health checks"
+    //                 sh 'npm run test:health'
+    //             }
+    //         }
+    //     }
+    // }
     
     post {
         always {
@@ -163,19 +163,19 @@ pipeline {
         }
         success {
             echo "Pipeline completed successfully!"
-            slackSend(
-                channel: '#deployments',
-                color: 'good',
-                message: "✅ LawHelp deployment successful - Build ${BUILD_NUMBER}"
-            )
+            // slackSend(
+            //     channel: '#deployments',
+            //     color: 'good',
+            //     message: "✅ LawHelp deployment successful - Build ${BUILD_NUMBER}"
+            // )
         }
         failure {
             echo "Pipeline failed!"
-            slackSend(
-                channel: '#deployments',
-                color: 'danger',
-                message: "❌ LawHelp deployment failed - Build ${BUILD_NUMBER}"
-            )
+            // slackSend(
+            //     channel: '#deployments',
+            //     color: 'danger',
+            //     message: "❌ LawHelp deployment failed - Build ${BUILD_NUMBER}"
+            // )
         }
     }
 }

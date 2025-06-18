@@ -4,7 +4,7 @@ import type { User, AuthState } from "@/types";
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ requiresTwoFactor?: boolean; userId?: string }>;
-  register: (userData: { email: string; name: string; passwordHash: string }) => Promise<void>;
+  register: (userData: { email: string; firstName: string; lastName: string; password: string }) => Promise<void>;
   verifyEmail: (userId: string, code: string) => Promise<void>;
   verify2FA: (userId: string, code: string) => Promise<void>;
   logout: () => void;
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {};
   };
 
-  const register = async (userData: { email: string; name: string; passwordHash: string }) => {
+  const register = async (userData: { email: string; firstName: string; lastName: string; password: string }) => {
     await apiRequest("POST", "/api/auth/register", userData);
   };
 

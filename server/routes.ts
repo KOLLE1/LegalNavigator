@@ -164,12 +164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Hash password
-      const passwordHash = await bcrypt.hash(userData.passwordHash, 12);
+      const passwordHash = await bcrypt.hash(userData.password, 12);
 
       // Create user
       const user = await storage.createUser({
         ...userData,
-        passwordHash,
+        password: passwordHash,
       });
 
       // Generate email verification code

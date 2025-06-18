@@ -1,0 +1,91 @@
+2:17:09 AM [express] serving on port 5000
+2:17:15 AM [express] POST /api/auth/login 401 in 5ms :: {"message":"Invalid email or password"}
+Registration error: ZodError: [
+  {
+    "code": "invalid_type",
+    "expected": "string",
+    "received": "undefined",
+    "path": [
+      "password"
+    ],
+    "message": "Required"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "string",
+    "received": "undefined",
+    "path": [
+      "firstName"
+    ],
+    "message": "Required"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "string",
+    "received": "undefined",
+    "path": [
+      "lastName"
+    ],
+    "message": "Required"
+  }
+]
+    at get error (file:///C:/Users/USER/Desktop/LegalNavigator/node_modules/zod/lib/index.mjs:587:31)
+    at ZodObject.parse (file:///C:/Users/USER/Desktop/LegalNavigator/node_modules/zod/lib/index.mjs:663:22)
+    at <anonymous> (C:\Users\USER\Desktop\LegalNavigator\server\routes.ts:158:41)
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\index.js:284:15
+    at Function.process_params (C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\index.js:346:12)  
+    at next (C:\Users\USER\Desktop\LegalNavigator\node_modules\express\lib\router\index.js:280:10) {
+  issues: [
+    {
+      code: 'invalid_type',
+      expected: 'string',
+      received: 'undefined',
+      path: [Array],
+      message: 'Required'
+    },
+    {
+      code: 'invalid_type',
+      expected: 'string',
+      received: 'undefined',
+      path: [Array],
+      message: 'Required'
+    },
+    {
+      code: 'invalid_type',
+      expected: 'string',
+      received: 'undefined',
+      path: [Array],
+      message: 'Required'
+    }
+  ],
+  addIssue: [Function (anonymous)],
+  addIssues: [Function (anonymous)],
+  errors: [
+    {
+      code: 'invalid_type',
+      expected: 'string',
+      received: 'undefined',
+      path: [Array],
+      message: 'Required'
+    },
+    {
+      code: 'invalid_type',
+      expected: 'string',
+      received: 'undefined',
+      path: [Array],
+      message: 'Required'
+    },
+    {
+      code: 'invalid_type',
+      expected: 'string',
+      received: 'undefined',
+      path: [Array],
+      message: 'Required'
+    }
+  ]
+}
+2:17:37 AM [express] POST /api/auth/register 400 in 26ms :: {"message":"Invalid user data","errors":…

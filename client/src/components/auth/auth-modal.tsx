@@ -24,7 +24,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [registerData, setRegisterData] = useState({ 
     email: "", 
-    name: "", 
+    firstName: "", 
+    lastName: "",
     password: "", 
     confirmPassword: "" 
   });
@@ -75,7 +76,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!registerData.email || !registerData.name || !registerData.password || !registerData.confirmPassword) {
+    if (!registerData.email || !registerData.firstName || !registerData.lastName || !registerData.password || !registerData.confirmPassword) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -106,8 +107,9 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     try {
       await register({
         email: registerData.email,
-        name: registerData.name,
-        passwordHash: registerData.password,
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        password: registerData.password,
       });
       
       setEmailVerificationMode(true);
@@ -322,13 +324,24 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           <TabsContent value="register">
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
-                  id="name"
+                  id="firstName"
                   type="text"
-                  value={registerData.name}
-                  onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter your full name"
+                  value={registerData.firstName}
+                  onChange={(e) => setRegisterData(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder="Enter your first name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  value={registerData.lastName}
+                  onChange={(e) => setRegisterData(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder="Enter your last name"
                   required
                 />
               </div>

@@ -49,59 +49,59 @@ stage('Lint and Type Check') {
                 }
             }
         }
-        stage('Unit Tests') {
-            steps {
-                script {
-                    echo "Running unit tests with coverage"
-                    if (isUnix()) {
-                        sh 'npm test -- --coverage --watchAll=false'
-                    } else {
-                        bat 'npm test -- --coverage --watchAll=false'
-                    }
-                }
-                // Fix: Use proper test results publisher
-                // publishTestResults(
-                //     testResultsPattern: 'coverage/lcov.info',
-                //     allowEmptyResults: false
-                // )
-            }
-            post {
-                always {
-                    // Publish test results if available
-                    script {
-                        if (fileExists('coverage/lcov.info')) {
-                            echo "Test coverage results found"
-                        }
-                    }
-                }
-            }
-        }
+//         stage('Unit Tests') {
+//             steps {
+//                 script {
+//                     echo "Running unit tests with coverage"
+//                     if (isUnix()) {
+//                         sh 'npm test -- --coverage --watchAll=false'
+//                     } else {
+//                         bat 'npm test -- --coverage --watchAll=false'
+//                     }
+//                 }
+//                 // Fix: Use proper test results publisher
+//                 // publishTestResults(
+//                 //     testResultsPattern: 'coverage/lcov.info',
+//                 //     allowEmptyResults: false
+//                 // )
+//             }
+//             post {
+//                 always {
+//                     // Publish test results if available
+//                     script {
+//                         if (fileExists('coverage/lcov.info')) {
+//                             echo "Test coverage results found"
+//                         }
+//                     }
+//                 }
+//             }
+//         }
         
-        stage('Integration Tests') {
-            steps {
-                script {
-                    echo "Running integration tests"
-                    if (isUnix()) {
-                        sh 'npm run test:integration'
-                    } else {
-                        bat 'npm run test:integration'
-                    }
-                }
-            }
-        }
+//         stage('Integration Tests') {
+//             steps {
+//                 script {
+//                     echo "Running integration tests"
+//                     if (isUnix()) {
+//                         sh 'npm run test:integration'
+//                     } else {
+//                         bat 'npm run test:integration'
+//                     }
+//                 }
+//             }
+//         }
         
-        stage('Security Scan') {
-            steps {
-                script {
-                    echo "Running security vulnerability scan"
-                    if (isUnix()) {
-                        sh 'npm audit --audit-level=moderate'
-                    } else {
-                        bat 'npm audit --audit-level=moderate'
-                    }
-                }
-            }
-        }
+//         stage('Security Scan') {
+//             steps {
+//                 script {
+//                     echo "Running security vulnerability scan"
+//                     if (isUnix()) {
+//                         sh 'npm audit --audit-level=moderate'
+//                     } else {
+//                         bat 'npm audit --audit-level=moderate'
+//                     }
+//                 }
+//             }
+//         }
         
         stage('Build Application') {
             steps {

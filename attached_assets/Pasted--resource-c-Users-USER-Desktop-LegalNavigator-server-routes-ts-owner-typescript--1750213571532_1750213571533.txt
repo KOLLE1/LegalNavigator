@@ -1,0 +1,66 @@
+[{
+	"resource": "/c:/Users/USER/Desktop/LegalNavigator/server/routes.ts",
+	"owner": "typescript",
+	"code": "2353",
+	"severity": 8,
+	"message": "Object literal may only specify known properties, and 'userId' does not exist in type '{ role: \"user\" | \"assistant\"; sessionId: string; content: string; category?: string | null | undefined; confidence?: string | null | undefined; referencesData?: Json | undefined; }'.",
+	"source": "ts",
+	"startLineNumber": 89,
+	"startColumn": 13,
+	"endLineNumber": 89,
+	"endColumn": 19
+},{
+	"resource": "/c:/Users/USER/Desktop/LegalNavigator/server/routes.ts",
+	"owner": "typescript",
+	"code": "2353",
+	"severity": 8,
+	"message": "Object literal may only specify known properties, and 'userId' does not exist in type '{ role: \"user\" | \"assistant\"; sessionId: string; content: string; category?: string | null | undefined; confidence?: string | null | undefined; referencesData?: Json | undefined; }'.",
+	"source": "ts",
+	"startLineNumber": 110,
+	"startColumn": 15,
+	"endLineNumber": 110,
+	"endColumn": 21
+},{
+	"resource": "/c:/Users/USER/Desktop/LegalNavigator/server/routes.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type '{ email: string; name: string; passwordHash: string; }' is not assignable to parameter of type '{ name: string; email: string; passwordHash: string; firstName: string; lastName: string; location?: string | null | undefined; phone?: string | null | undefined; role?: \"user\" | \"lawyer\" | \"admin\" | null | undefined; ... 7 more ...; lastActive?: Date | ... 1 more ... | undefined; }'.\n  Type '{ email: string; name: string; passwordHash: string; }' is missing the following properties from type '{ name: string; email: string; passwordHash: string; firstName: string; lastName: string; location?: string | null | undefined; phone?: string | null | undefined; role?: \"user\" | \"lawyer\" | \"admin\" | null | undefined; ... 7 more ...; lastActive?: Date | ... 1 more ... | undefined; }': firstName, lastName",
+	"source": "ts",
+	"startLineNumber": 199,
+	"startColumn": 45,
+	"endLineNumber": 203,
+	"endColumn": 8
+},{
+	"resource": "/c:/Users/USER/Desktop/LegalNavigator/server/routes.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type '\"2fa_setup\"' is not assignable to type '\"email_verification\" | \"password_reset\" | \"two_factor\"'.",
+	"source": "ts",
+	"startLineNumber": 399,
+	"startColumn": 9,
+	"endLineNumber": 399,
+	"endColumn": 13,
+	"relatedInformation": [
+		{
+			"startLineNumber": 88,
+			"startColumn": 3,
+			"endLineNumber": 88,
+			"endColumn": 92,
+			"message": "The expected type comes from property 'type' which is declared here on type '{ userId: string; type: \"email_verification\" | \"password_reset\" | \"two_factor\"; code: string; expiresAt: Date; used?: boolean | null | undefined; }'",
+			"resource": "/c:/Users/USER/Desktop/LegalNavigator/shared/schema.ts"
+		}
+	]
+},{
+	"resource": "/c:/Users/USER/Desktop/LegalNavigator/server/routes.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'password' does not exist on type '{ id: string; location: string | null; name: string; createdAt: Date | null; updatedAt: Date | null; email: string; passwordHash: string; firstName: string; lastName: string; ... 9 more ...; lastActive: Date | null; }'.",
+	"source": "ts",
+	"startLineNumber": 464,
+	"startColumn": 67,
+	"endLineNumber": 464,
+	"endColumn": 75
+}]

@@ -32,7 +32,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex h-screen bg-white dark:bg-gray-950">
+    <div className="flex h-screen bg-white dark:bg-gray-950 overflow-hidden">
       {/* Sidebar */}
       <div className="w-64 flex-shrink-0">
         <ChatSidebar 
@@ -43,7 +43,7 @@ export default function Chat() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1">
+      <div className="flex-1 flex flex-col">
         <ChatInterface 
           selectedSessionId={selectedSessionId}
           onSessionChange={handleSessionSelect}

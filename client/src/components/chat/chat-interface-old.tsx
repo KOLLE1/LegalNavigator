@@ -36,6 +36,7 @@ export function ChatInterface({ selectedSessionId, onSessionChange }: ChatInterf
     token: token || undefined,
     onMessage: (message: WSMessage) => {
       if (message.type === 'message_sent' || message.type === 'ai_response') {
+        // Invalidate messages query to refresh the list
         queryClient.invalidateQueries({ queryKey: ['chat-messages', selectedSessionId] });
       } else if (message.type === 'error') {
         toast({
@@ -98,7 +99,7 @@ export function ChatInterface({ selectedSessionId, onSessionChange }: ChatInterf
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to create new chat session",
+          description: "Failed to create chat session",
           variant: "destructive",
         });
         return;
@@ -106,14 +107,16 @@ export function ChatInterface({ selectedSessionId, onSessionChange }: ChatInterf
     }
 
     // Send message via WebSocket
-    if (isConnected && sessionId) {
-      setIsTyping(true);
-      sendWSMessage({
-        type: 'send_message',
-        sessionId,
-        content: currentMessage,
-      });
+    const messageSent = sendWSMessage({
+      type: 'chat_message',
+      sessionId: sessionId!,
+      content: currentMessage,
+      userId: user!.id,
+    });
+
+    if (messageSent) {
       setCurrentMessage("");
+      setIsTyping(true);
     } else {
       toast({
         title: "Connection Error",
@@ -208,7 +211,7 @@ export function ChatInterface({ selectedSessionId, onSessionChange }: ChatInterf
               ))}
               
               {isTyping && (
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                   <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                     <Bot className="h-4 w-4 text-white" />
                   </div>

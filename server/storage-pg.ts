@@ -1,4 +1,4 @@
-import { db } from "./db-pg";
+import { db } from "./db";
 import { eq, desc, and, ilike, gt } from "drizzle-orm";
 import {
   users, chatSessions, chatMessages, lawyers, lawyerRatings,

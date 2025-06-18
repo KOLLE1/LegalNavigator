@@ -1,38 +1,15 @@
-import mysql from 'mysql2/promise';
-import { drizzle } from 'drizzle-orm/mysql2';
-import * as schema from "@shared/schema";
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import ws from "ws";
+import * as schema from "@shared/schema-pg";
 
-// Database configuration with connection handling
-async function createDatabaseConnection() {
-  try {
-    const pool = mysql.createPool({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'password',
-      database: process.env.DB_NAME || 'lawhelp_db',
-      port: parseInt(process.env.DB_PORT || '3306'),
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-      acquireTimeout: 60000,
-      timeout: 60000,
-    });
+neonConfig.webSocketConstructor = ws;
 
-    // Test the connection
-    const connection = await pool.getConnection();
-    await connection.ping();
-    connection.release();
-    
-    console.log('✅ MySQL database connected successfully');
-    return drizzle(pool, { schema, mode: 'default' });
-  } catch (error) {
-    console.error('❌ MySQL connection failed:', error);
-    console.log('📋 Please ensure MySQL is running and database is created');
-    console.log('📋 Run the SQL script from database-setup.sql in MySQL Workbench');
-    console.log('📋 Check your .env file for correct database credentials');
-    
-    throw new Error('Database connection failed. Please check MySQL setup.');
-  }
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?",
+  );
 }
 
-export const db = await createDatabaseConnection();
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const db = drizzle({ client: pool, schema });

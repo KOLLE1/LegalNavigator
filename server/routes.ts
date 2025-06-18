@@ -9,7 +9,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { z } from "zod";
-import { insertUserSchema, insertChatSessionSchema, insertChatMessageSchema } from "../shared/schema";
+import { insertUserSchema, insertChatSessionSchema, insertChatMessageSchema } from "../shared/schema-pg";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-key";
 
@@ -164,12 +164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Hash password
-      const passwordHash = await bcrypt.hash(userData.password, 12);
+      const passwordHash = await bcrypt.hash(userData.passwordHash, 12);
 
       // Create user
       const user = await storage.createUser({
         ...userData,
-        password: passwordHash,
+        passwordHash,
       });
 
       // Generate email verification code
@@ -211,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'Invalid email or password' });
       }
 
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: 'Invalid email or password' });
       }

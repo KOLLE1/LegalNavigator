@@ -312,5 +312,21 @@ class MemStorage implements IStorage {
   }
 }
 
-import { DatabaseStorage } from "./storage-pg";
-export const storage = new DatabaseStorage();
+// Check if running in Replit environment
+const isReplit = process.env.REPLIT_DEPLOYMENT_ID || process.env.REPL_ID;
+
+// Storage initialization function
+export async function initializeStorage(): Promise<IStorage> {
+  if (isReplit) {
+    // Use PostgreSQL storage for Replit
+    const { DatabaseStorage } = await import("./storage-pg.js");
+    return new DatabaseStorage();
+  } else {
+    // Use MySQL storage for local development
+    const { MySQLStorage } = await import("./storage-mysql.js");
+    return new MySQLStorage();
+  }
+}
+
+// For compatibility, provide a default storage instance
+export const storage = new MemStorage();

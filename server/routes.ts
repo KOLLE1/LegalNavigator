@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { storage } from "./storage.js";
+import { initializeStorage } from "./storage.js";
 import { aiLegalService } from "./ai-service";
 import { twoFactorService } from "./2fa-service";
 import { metricsHandler, healthHandler, metricsCollector } from "./metrics";
@@ -9,7 +9,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { z } from "zod";
-import { insertUserSchema, insertChatSessionSchema, insertChatMessageSchema } from "../shared/schema-pg";
+import { insertUserSchema, insertChatSessionSchema, insertChatMessageSchema } from "../shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-key";
 

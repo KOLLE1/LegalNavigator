@@ -53,10 +53,10 @@ async function sendVerificationCode(email: string, code: string, type: string): 
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-  
+
   // Initialize storage
   const storage = await initializeStorage();
-  
+
   // WebSocket server setup
   const wss = new WebSocketServer({ 
     server: httpServer, 
@@ -65,11 +65,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   wss.on('connection', (ws: WebSocket, req) => {
     console.log('WebSocket connection established');
-    
+
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
-        
+
         if (message.type === 'auth') {
           // Authenticate WebSocket connection
           try {
@@ -82,13 +82,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (message.type === 'chat_message') {
           // Handle real-time chat messages
           const { sessionId, content, userId } = message;
-          
+
           // Save user message
           const userMessage = await storage.createChatMessage({
             sessionId,
-            userId,
             content,
-            sender: 'user',
+            role: 'user',
           });
 
           // Broadcast user message
@@ -107,15 +106,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Save AI message
             const aiMessage = await storage.createChatMessage({
               sessionId,
-              userId,
               content: aiResponse.answer,
-              sender: 'ai',
-              metadata: {
-                category: aiResponse.category,
-                confidence: aiResponse.confidence,
-                references: aiResponse.references,
-                disclaimer: aiResponse.disclaimer,
-              },
+              role: 'assistant',
+              category: aiResponse.category,
+              confidence: aiResponse.confidence.toString(),
+              referencesData: aiResponse.references,
             });
 
             // Broadcast AI response
@@ -159,7 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
@@ -173,6 +168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser({
         ...userData,
         passwordHash,
+        firstName: userData.name.split(' ')[0] || userData.name,
+        lastName: userData.name.split(' ').slice(1).join(' ') || '',
       });
 
       // Generate email verification code
@@ -339,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const totpSetup = await twoFactorService.generateTOTPSecret(user.email);
-      
+
       // Store the secret temporarily (user needs to verify before it's saved)
       await storage.updateUser(user.id, { 
         twoFactorSecret: totpSetup.secret,
@@ -369,7 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createVerificationCode({
         userId: user.id,
         code: testCode,
-        type: '2fa_setup',
+        type: 'two_factor',
         used: false,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       });
@@ -387,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { code, method } = req.body;
       const user = await storage.getUser(req.user.userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -400,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         isValid = twoFactorService.verifyTOTP(code, user.twoFactorSecret);
       } else if (method === 'email') {
-        const verificationCode = await storage.getVerificationCode(user.id, '2fa_setup', code);
+        const verificationCode = await storage.getVerificationCode(user.id, 'two_factor', code);
         isValid = !!verificationCode;
         if (isValid && verificationCode) {
           await storage.markVerificationCodeUsed(verificationCode.id);
@@ -428,13 +425,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { password } = req.body;
       const user = await storage.getUser(req.user.userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
       // Verify password before disabling 2FA
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: 'Invalid password' });
       }
@@ -457,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, code, method } = req.body;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -467,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (method === 'totp' && user.twoFactorSecret) {
         isValid = twoFactorService.verifyTOTP(code, user.twoFactorSecret);
       } else if (method === 'email') {
-        const verificationCode = await storage.getVerificationCode(userId, '2fa_email', code);
+        const verificationCode = await storage.getVerificationCode(user.id, 'two_factor', code);
         isValid = !!verificationCode;
         if (isValid && verificationCode) {
           await storage.markVerificationCodeUsed(verificationCode.id);
@@ -560,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/chat/sessions/:id/messages', authenticateToken, async (req: any, res) => {
     try {
       const { id } = req.params;
-      
+
       // Verify session belongs to user
       const session = await storage.getChatSession(id);
       if (!session || session.userId !== req.user.userId) {
@@ -579,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/lawyers', async (req, res) => {
     try {
       const { specialization, location, language, minRating } = req.query;
-      
+
       const lawyers = await storage.getLawyers({
         specialization: specialization as string,
         location: location as string,
@@ -598,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const lawyer = await storage.getLawyer(id);
-      
+
       if (!lawyer) {
         return res.status(404).json({ message: 'Lawyer not found' });
       }

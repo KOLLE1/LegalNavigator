@@ -75,7 +75,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!registerData.email || !registerData.firstName || !registerData.lastName || !registerData.password || !registerData.confirmPassword) {
       toast({
         title: "Error",
@@ -111,7 +111,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         lastName: registerData.lastName,
         password: registerData.password,
       });
-      
+
       setEmailVerificationMode(true);
       setPendingUserId(registerData.email); // We'll use email as identifier for now
       toast({
@@ -131,7 +131,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
   const handleEmailVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!verificationCode) {
       toast({
         title: "Error",
@@ -162,7 +162,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
   const handle2FAVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!verificationCode) {
       toast({
         title: "Error",

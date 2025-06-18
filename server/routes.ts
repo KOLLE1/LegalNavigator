@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               content: aiResponse.answer,
               role: 'assistant',
               category: aiResponse.category,
-              confidence: aiResponse.confidence,
+              confidence: aiResponse.confidence.toString(),
               referencesData: aiResponse.references,
             });
 
@@ -464,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (method === 'totp' && user.twoFactorSecret) {
         isValid = twoFactorService.verifyTOTP(code, user.twoFactorSecret);
       } else if (method === 'email') {
-        const verificationCode = await storage.getVerificationCode(userId, '2fa_email', code);
+        const verificationCode = await storage.getVerificationCode(user.id, 'two_factor', code);
         isValid = !!verificationCode;
         if (isValid && verificationCode) {
           await storage.markVerificationCodeUsed(verificationCode.id);

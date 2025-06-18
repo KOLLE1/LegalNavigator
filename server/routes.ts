@@ -53,10 +53,10 @@ async function sendVerificationCode(email: string, code: string, type: string): 
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-  
+
   // Initialize storage
   const storage = await initializeStorage();
-  
+
   // WebSocket server setup
   const wss = new WebSocketServer({ 
     server: httpServer, 
@@ -65,11 +65,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   wss.on('connection', (ws: WebSocket, req) => {
     console.log('WebSocket connection established');
-    
+
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
-        
+
         if (message.type === 'auth') {
           // Authenticate WebSocket connection
           try {
@@ -82,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (message.type === 'chat_message') {
           // Handle real-time chat messages
           const { sessionId, content, userId } = message;
-          
+
           // Save user message
           const userMessage = await storage.createChatMessage({
             sessionId,
@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
@@ -339,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const totpSetup = await twoFactorService.generateTOTPSecret(user.email);
-      
+
       // Store the secret temporarily (user needs to verify before it's saved)
       await storage.updateUser(user.id, { 
         twoFactorSecret: totpSetup.secret,
@@ -369,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createVerificationCode({
         userId: user.id,
         code: testCode,
-        type: '2fa_setup',
+        type: 'two_factor',
         used: false,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       });
@@ -387,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { code, method } = req.body;
       const user = await storage.getUser(req.user.userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -428,7 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { password } = req.body;
       const user = await storage.getUser(req.user.userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -457,7 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, code, method } = req.body;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -560,7 +560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/chat/sessions/:id/messages', authenticateToken, async (req: any, res) => {
     try {
       const { id } = req.params;
-      
+
       // Verify session belongs to user
       const session = await storage.getChatSession(id);
       if (!session || session.userId !== req.user.userId) {
@@ -579,7 +579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/lawyers', async (req, res) => {
     try {
       const { specialization, location, language, minRating } = req.query;
-      
+
       const lawyers = await storage.getLawyers({
         specialization: specialization as string,
         location: location as string,
@@ -598,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const lawyer = await storage.getLawyer(id);
-      
+
       if (!lawyer) {
         return res.status(404).json({ message: 'Lawyer not found' });
       }

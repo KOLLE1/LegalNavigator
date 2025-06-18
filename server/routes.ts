@@ -86,9 +86,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Save user message
           const userMessage = await storage.createChatMessage({
             sessionId,
-            userId,
             content,
-            sender: 'user',
+            role: 'user',
           });
 
           // Broadcast user message
@@ -107,15 +106,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Save AI message
             const aiMessage = await storage.createChatMessage({
               sessionId,
-              userId,
               content: aiResponse.answer,
-              sender: 'ai',
-              metadata: {
-                category: aiResponse.category,
-                confidence: aiResponse.confidence,
-                references: aiResponse.references,
-                disclaimer: aiResponse.disclaimer,
-              },
+              role: 'assistant',
+              category: aiResponse.category,
+              confidence: aiResponse.confidence,
+              referencesData: aiResponse.references,
             });
 
             // Broadcast AI response
@@ -173,6 +168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser({
         ...userData,
         passwordHash,
+        firstName: userData.name.split(' ')[0] || userData.name,
+        lastName: userData.name.split(' ').slice(1).join(' ') || '',
       });
 
       // Generate email verification code
@@ -400,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         isValid = twoFactorService.verifyTOTP(code, user.twoFactorSecret);
       } else if (method === 'email') {
-        const verificationCode = await storage.getVerificationCode(user.id, '2fa_setup', code);
+        const verificationCode = await storage.getVerificationCode(user.id, 'two_factor', code);
         isValid = !!verificationCode;
         if (isValid && verificationCode) {
           await storage.markVerificationCodeUsed(verificationCode.id);
@@ -434,7 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify password before disabling 2FA
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: 'Invalid password' });
       }

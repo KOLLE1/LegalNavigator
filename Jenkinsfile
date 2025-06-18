@@ -182,31 +182,31 @@ pipeline {
             }
         }
         
-    //     stage('Deploy to Staging') {
-    //         when {
-    //             allOf {
-    //                 branch 'develop'
-    //                 expression { isUnix() }
-    //                 expression { currentBuild.result != 'FAILURE' }
-    //             }
-    //         }
-    //         steps {
-    //             script {
-    //                 echo "🚀 Deploying to staging environment"
-    //                 try {
-    //                     sh """
-    //                         kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp-staging
-    //                         kubectl rollout status deployment/lawhelp-app -n lawhelp-staging --timeout=300s
-    //                     """
-    //                     echo "✅ Deployment to staging successful"
-    //                 } catch (Exception e) {
-    //                     echo "❌ Deployment failed: ${e.getMessage()}"
-    //                     error("Deployment to staging failed")
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+        stage('Deploy to Staging') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { isUnix() }
+                    expression { currentBuild.result != 'FAILURE' }
+                }
+            }
+            steps {
+                script {
+                    echo "🚀 Deploying to staging environment"
+                    try {
+                        sh """
+                            kubectl set image deployment/lawhelp-app lawhelp=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG} -n lawhelp-staging
+                            kubectl rollout status deployment/lawhelp-app -n lawhelp-staging --timeout=300s
+                        """
+                        echo "✅ Deployment to staging successful"
+                    } catch (Exception e) {
+                        echo "❌ Deployment failed: ${e.getMessage()}"
+                        error("Deployment to staging failed")
+                    }
+                }
+            }
+        }
+    }
     
     post {
         always {

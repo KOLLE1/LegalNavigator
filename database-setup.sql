@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     content TEXT NOT NULL,
     category VARCHAR(100),
     confidence DECIMAL(3,2),
-    references JSON,
+    message_references JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
     INDEX idx_session_id (session_id),

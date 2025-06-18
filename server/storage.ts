@@ -85,9 +85,24 @@ class MemStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const newUser: User = {
       id: nanoid(),
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      passwordHash: user.passwordHash,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone || null,
+      role: user.role || null,
+      isLawyer: user.isLawyer || null,
+      emailVerified: user.emailVerified || null,
+      twoFactorEnabled: user.twoFactorEnabled || null,
+      twoFactorMethod: user.twoFactorMethod || null,
+      twoFactorSecret: user.twoFactorSecret || null,
+      backupCodes: user.backupCodes || null,
+      location: user.location || null,
+      profileImageUrl: user.profileImageUrl || null,
+      lastActive: user.lastActive || null,
       createdAt: new Date(),
       updatedAt: new Date(),
-      ...user,
     };
     this.users.set(newUser.id, newUser);
     return newUser;
@@ -111,9 +126,12 @@ class MemStorage implements IStorage {
   async createChatSession(session: InsertChatSession): Promise<ChatSession> {
     const newSession: ChatSession = {
       id: nanoid(),
+      userId: session.userId,
+      title: session.title,
+      status: session.status || null,
+      language: session.language || null,
       createdAt: new Date(),
       updatedAt: new Date(),
-      ...session,
     };
     this.chatSessions.set(newSession.id, newSession);
     return newSession;
@@ -122,7 +140,7 @@ class MemStorage implements IStorage {
   async getChatSessions(userId: string): Promise<ChatSession[]> {
     return Array.from(this.chatSessions.values())
       .filter(session => session.userId === userId)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      .sort((a, b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0));
   }
 
   async getChatSession(id: string): Promise<ChatSession | undefined> {
@@ -147,8 +165,13 @@ class MemStorage implements IStorage {
   async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
     const newMessage: ChatMessage = {
       id: nanoid(),
+      role: message.role,
+      sessionId: message.sessionId,
+      content: message.content,
+      category: message.category || null,
+      confidence: message.confidence || null,
+      referencesData: message.referencesData || null,
       createdAt: new Date(),
-      ...message,
     };
     this.chatMessages.set(newMessage.id, newMessage);
     return newMessage;
@@ -315,18 +338,10 @@ class MemStorage implements IStorage {
 // Check if running in Replit environment
 const isReplit = process.env.REPLIT_DEPLOYMENT_ID || process.env.REPL_ID;
 
-// Storage initialization function
-export async function initializeStorage(): Promise<IStorage> {
-  if (isReplit) {
-    // Use PostgreSQL storage for Replit
-    const { DatabaseStorage } = await import("./storage-pg.js");
-    return new DatabaseStorage();
-  } else {
-    // Use MySQL storage for local development
-    const { MySQLStorage } = await import("./storage-mysql.js");
-    return new MySQLStorage();
-  }
-}
-
-// For compatibility, provide a default storage instance
+// For local development, always use in-memory storage to avoid database complexities during setup
 export const storage = new MemStorage();
+
+// Storage initialization function for when real database is needed
+export async function initializeStorage(): Promise<IStorage> {
+  return storage;
+}

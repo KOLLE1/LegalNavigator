@@ -54,6 +54,9 @@ async function sendVerificationCode(email: string, code: string, type: string): 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
+  // Initialize storage
+  const storage = await initializeStorage();
+  
   // WebSocket server setup
   const wss = new WebSocketServer({ 
     server: httpServer, 

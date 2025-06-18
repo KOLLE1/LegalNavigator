@@ -6,16 +6,22 @@ import { z } from 'zod';
 // Users table
 export const users = mysqlTable("users", {
   id: varchar("id", { length: 255 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  password: varchar("password", { length: 255 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   firstName: varchar("first_name", { length: 255 }).notNull(),
   lastName: varchar("last_name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 20 }),
   role: mysqlEnum("role", ["user", "lawyer", "admin"]).default("user"),
+  isLawyer: boolean("is_lawyer").default(false),
   emailVerified: boolean("email_verified").default(false),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorMethod: varchar("two_factor_method", { length: 50 }),
   twoFactorSecret: varchar("two_factor_secret", { length: 255 }),
   backupCodes: json("backup_codes"),
+  location: varchar("location", { length: 255 }),
+  profileImageUrl: varchar("profile_image_url", { length: 500 }),
+  lastActive: timestamp("last_active"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
